@@ -30,7 +30,7 @@ export const auth = betterAuth({
     google: {
       clientId: env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
-      redirectURI: `${env.BETTER_AUTH_URL || "http://localhost:3000"}/api/auth/callback/google`,
+      redirectURI: `${env.BETTER_AUTH_URL}/api/auth/callback/google`,
       // Domain restriction - only allow sign-ins from specified Google Workspace domain
       ...(env.GOOGLE_HOSTED_DOMAIN && {
         authorizationParams: {
