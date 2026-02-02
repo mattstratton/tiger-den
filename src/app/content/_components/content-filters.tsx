@@ -13,6 +13,7 @@ import {
 } from "~/components/ui/select";
 import { api } from "~/trpc/react";
 import { ContentFormDialog } from "./content-form-dialog";
+import { ImportCsvDialog } from "./import-csv-dialog";
 
 interface ContentFiltersProps {
   filters: {
@@ -38,6 +39,7 @@ const CONTENT_TYPES = [
 
 export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const { data: campaigns } = api.campaigns.list.useQuery();
 
   const hasActiveFilters =
@@ -127,7 +129,9 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
             <Button onClick={() => setShowAddDialog(true)}>
               Add Content
             </Button>
-            <Button variant="outline">Import CSV</Button>
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              Import CSV
+            </Button>
             <Button variant="outline">Export CSV</Button>
           </div>
         </div>
@@ -136,6 +140,11 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
       <ContentFormDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
+      />
+
+      <ImportCsvDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
       />
     </>
   );
