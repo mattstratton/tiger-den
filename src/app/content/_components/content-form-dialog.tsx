@@ -37,6 +37,7 @@ import {
 } from "~/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { CampaignMultiSelect } from "./campaign-multi-select";
 
 const contentFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -325,9 +326,22 @@ export function ContentFormDialog({
                 )}
               />
 
-              <div className="text-sm text-muted-foreground">
-                Campaign selection coming in Task 15
-              </div>
+              <FormField
+                control={form.control}
+                name="campaignIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Campaigns</FormLabel>
+                    <FormControl>
+                      <CampaignMultiSelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
