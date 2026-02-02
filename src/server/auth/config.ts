@@ -31,17 +31,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/",
     error: "/",
   },
-  callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnProtectedRoute =
-        nextUrl.pathname.startsWith("/content") ||
-        nextUrl.pathname.startsWith("/campaigns");
-
-      if (isOnProtectedRoute && !isLoggedIn) {
-        return false;
-      }
-      return true;
-    },
-  },
 });

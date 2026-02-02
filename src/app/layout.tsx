@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { auth, signOut } from "~/server/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Tiger Den - Content Inventory",
@@ -44,7 +45,8 @@ export default async function RootLayout({
                 <form
                   action={async () => {
                     "use server";
-                    await signOut({ redirectTo: "/" });
+                    await signOut({ redirect: false });
+                    redirect("/");
                   }}
                 >
                   <button type="submit" className="text-sm font-medium hover:underline">
