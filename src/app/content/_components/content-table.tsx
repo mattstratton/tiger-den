@@ -16,11 +16,15 @@ import {
 import { api } from "~/trpc/react";
 import { ContentTypeBadge } from "./content-badge";
 import { ContentFormDialog } from "./content-form-dialog";
+import { DeleteContentDialog } from "./delete-content-dialog";
 
 export function ContentTable() {
   const [page, setPage] = useState(0);
   const pageSize = 50;
   const [editingId, setEditingId] = useState<string | undefined>();
+  const [deletingItem, setDeletingItem] = useState<
+    { id: string; title: string } | undefined
+  >();
 
   const { data, isLoading } = api.content.list.useQuery({
     limit: pageSize,
@@ -112,7 +116,13 @@ export function ContentTable() {
                     <Button size="icon" variant="ghost" onClick={() => setEditingId(item.id)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() =>
+                        setDeletingItem({ id: item.id, title: item.title })
+                      }
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -152,6 +162,15 @@ export function ContentTable() {
         onOpenChange={(open) => !open && setEditingId(undefined)}
         contentId={editingId}
       />
+
+      {deletingItem && (
+        <DeleteContentDialog
+          open={!!deletingItem}
+          onOpenChange={(open) => !open && setDeletingItem(undefined)}
+          contentId={deletingItem.id}
+          contentTitle={deletingItem.title}
+        />
+      )}
     </div>
   );
 }
