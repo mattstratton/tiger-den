@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+import Link from "next/link";
 
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -22,7 +23,24 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <TRPCReactProvider>
+          <nav className="border-b">
+            <div className="container mx-auto flex h-16 items-center px-4">
+              <Link href="/" className="font-bold text-xl">
+                Tiger Den
+              </Link>
+              <div className="ml-8 flex gap-4">
+                <Link href="/content" className="text-sm font-medium hover:underline">
+                  Content
+                </Link>
+                <Link href="/campaigns" className="text-sm font-medium hover:underline">
+                  Campaigns
+                </Link>
+              </div>
+            </div>
+          </nav>
+          {children}
+        </TRPCReactProvider>
       </body>
     </html>
   );
