@@ -18,15 +18,39 @@ import { ContentTypeBadge } from "./content-badge";
 import { ContentFormDialog } from "./content-form-dialog";
 import { DeleteContentDialog } from "./delete-content-dialog";
 
-export function ContentTable() {
+interface ContentTableProps {
+  filters: {
+    search: string;
+    contentTypes: string[];
+    campaignIds: string[];
+  };
+}
+
+export function ContentTable({ filters }: ContentTableProps) {
   const [page, setPage] = useState(0);
+  const [previousFilters, setPreviousFilters] = useState(filters);
   const pageSize = 50;
   const [editingId, setEditingId] = useState<string | undefined>();
   const [deletingItem, setDeletingItem] = useState<
     { id: string; title: string } | undefined
   >();
 
+  // Reset page to 0 when filters change
+  if (
+    filters.search !== previousFilters.search ||
+    filters.contentTypes.join(",") !== previousFilters.contentTypes.join(",") ||
+    filters.campaignIds.join(",") !== previousFilters.campaignIds.join(",")
+  ) {
+    setPage(0);
+    setPreviousFilters(filters);
+  }
+
   const { data, isLoading } = api.content.list.useQuery({
+    search: filters.search.length > 0 ? filters.search : undefined,
+    contentTypes: filters.contentTypes.length > 0
+      ? (filters.contentTypes as ("youtube_video" | "blog_post" | "case_study" | "website_content" | "third_party" | "other")[])
+      : undefined,
+    campaignIds: filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
     limit: pageSize,
     offset: page * pageSize,
   });
