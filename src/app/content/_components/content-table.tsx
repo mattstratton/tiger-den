@@ -15,10 +15,12 @@ import {
 } from "~/components/ui/table";
 import { api } from "~/trpc/react";
 import { ContentTypeBadge } from "./content-badge";
+import { ContentFormDialog } from "./content-form-dialog";
 
 export function ContentTable() {
   const [page, setPage] = useState(0);
   const pageSize = 50;
+  const [editingId, setEditingId] = useState<string | undefined>();
 
   const { data, isLoading } = api.content.list.useQuery({
     limit: pageSize,
@@ -107,7 +109,7 @@ export function ContentTable() {
                 <TableCell>{item.author || "-"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button size="icon" variant="ghost">
+                    <Button size="icon" variant="ghost" onClick={() => setEditingId(item.id)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost">
@@ -144,6 +146,12 @@ export function ContentTable() {
           </Button>
         </div>
       </div>
+
+      <ContentFormDialog
+        open={!!editingId}
+        onOpenChange={(open) => !open && setEditingId(undefined)}
+        contentId={editingId}
+      />
     </div>
   );
 }
