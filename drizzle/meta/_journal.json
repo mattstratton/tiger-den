@@ -8,6 +8,13 @@
       "when": 1770047594600,
       "tag": "0000_strong_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770048187661,
+      "tag": "0001_youthful_kree",
+      "breakpoints": true
     }
   ]
 }

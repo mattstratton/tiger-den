@@ -115,6 +115,7 @@ export const verification = tigerDenSchema.table("verification", {
 export const userRelations = relations(user, ({ many }) => ({
   account: many(account),
   session: many(session),
+  contentItems: many(contentItems),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -139,8 +140,10 @@ export const contentItems = tigerDenSchema.table("content_items", {
   tags: text("tags").array(),
   source: sourceEnum("source").notNull().default("manual"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  createdByUserId: uuid("created_by_user_id").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+  createdByUserId: text("created_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
 }, (table) => ({
   currentUrlIdx: index("content_items_current_url_idx").on(table.currentUrl),
   contentTypeIdx: index("content_items_content_type_idx").on(table.contentType),
@@ -173,7 +176,11 @@ export const contentCampaigns = tigerDenSchema.table(
 );
 
 // Relations
-export const contentItemsRelations = relations(contentItems, ({ many }) => ({
+export const contentItemsRelations = relations(contentItems, ({ one, many }) => ({
+  createdByUser: one(user, {
+    fields: [contentItems.createdByUserId],
+    references: [user.id],
+  }),
   campaigns: many(contentCampaigns),
 }));
 
