@@ -25,6 +25,10 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  // Allow localhost for development (fixes OAuth state_mismatch on HTTP)
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
   emailAndPassword: {
     enabled: true, // Keep email/password as backup authentication method
   },
