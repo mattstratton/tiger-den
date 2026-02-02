@@ -58,7 +58,7 @@ export const users = tigerDenSchema.table("users", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   createdAt: timestamp("createdAt", { withTimezone: true })
@@ -78,7 +78,7 @@ export const accounts = tigerDenSchema.table("accounts", {
   providerAccountId: text("providerAccountId").notNull(),
   refresh_token: text("refresh_token"),
   access_token: text("access_token"),
-  expires_at: timestamp("expires_at", { mode: "date" }),
+  expires_at: integer("expires_at"),
   token_type: text("token_type"),
   scope: text("scope"),
   id_token: text("id_token"),

@@ -22,6 +22,13 @@
       "when": 1770101400000,
       "tag": "0002_nextauth_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770104000000,
+      "tag": "0003_fix_expires_at_and_email",
+      "breakpoints": true
     }
   ]
 }
