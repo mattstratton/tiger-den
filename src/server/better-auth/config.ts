@@ -21,6 +21,7 @@ import { db } from "~/server/db";
  * Email/password authentication is also enabled as a fallback.
  */
 export const auth = betterAuth({
+  baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
