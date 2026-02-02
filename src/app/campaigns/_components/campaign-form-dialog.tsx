@@ -43,9 +43,11 @@ export function CampaignFormDialog({
 }: CampaignFormDialogProps) {
   const utils = api.useUtils();
 
-  // Fetch campaigns to get the existing campaign data for editing
-  const { data: campaigns } = api.campaigns.list.useQuery();
-  const existingCampaign = campaigns?.find((c) => c.id === campaignId);
+  // Fetch the campaign data for editing
+  const { data: existingCampaign } = api.campaigns.getById.useQuery(
+    { id: campaignId! },
+    { enabled: !!campaignId }
+  );
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -77,7 +79,7 @@ export function CampaignFormDialog({
       form.reset();
     },
     onError: (error) => {
-      alert(`Failed to create campaign: ${error.message}`);
+      console.error('Failed to create campaign:', error);
     },
   });
 
@@ -85,9 +87,10 @@ export function CampaignFormDialog({
     onSuccess: () => {
       void utils.campaigns.list.invalidate();
       onOpenChange(false);
+      form.reset();
     },
     onError: (error) => {
-      alert(`Failed to update campaign: ${error.message}`);
+      console.error('Failed to update campaign:', error);
     },
   });
 

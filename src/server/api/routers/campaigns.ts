@@ -24,6 +24,20 @@ export const campaignsRouter = createTRPCRouter({
     return campaignList;
   }),
 
+  getById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const campaign = await ctx.db.query.campaigns.findFirst({
+        where: eq(campaigns.id, input.id),
+      });
+
+      if (!campaign) {
+        throw new Error("Campaign not found");
+      }
+
+      return campaign;
+    }),
+
   create: protectedProcedure
     .input(
       z.object({
