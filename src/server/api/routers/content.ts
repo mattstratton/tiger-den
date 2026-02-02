@@ -128,29 +128,32 @@ export const contentRouter = createTRPCRouter({
       }
 
       // Create content item
-      const result = await ctx.db
-        .insert(contentItems)
-        .values({
-          ...contentData,
-          createdByUserId: ctx.session.user.id,
-          source: "manual",
-        })
-        .returning();
+      const newItem = await ctx.db.transaction(async (tx) => {
+        const [item] = await tx
+          .insert(contentItems)
+          .values({
+            ...contentData,
+            createdByUserId: ctx.session.user.id,
+            source: "manual",
+          })
+          .returning();
 
-      const newItem = result[0];
-      if (!newItem) {
-        throw new Error("Failed to create content item");
-      }
+        if (!item) {
+          throw new Error("Failed to create content item");
+        }
 
-      // Link campaigns if provided
-      if (campaignIds && campaignIds.length > 0) {
-        await ctx.db.insert(contentCampaigns).values(
-          campaignIds.map((campaignId) => ({
-            contentItemId: newItem.id,
-            campaignId,
-          }))
-        );
-      }
+        // Link campaigns if provided
+        if (campaignIds && campaignIds.length > 0) {
+          await tx.insert(contentCampaigns).values(
+            campaignIds.map((campaignId) => ({
+              contentItemId: item.id,
+              campaignId,
+            }))
+          );
+        }
+
+        return item;
+      });
 
       return newItem;
     }),
@@ -195,35 +198,43 @@ export const contentRouter = createTRPCRouter({
         previousUrls = [...previousUrls, existing.currentUrl];
       }
 
-      // Update content item
-      const [updatedItem] = await ctx.db
-        .update(contentItems)
-        .set({
-          ...updates,
-          ...(currentUrl && { currentUrl }),
-          previousUrls,
-          updatedAt: new Date(),
-        })
-        .where(eq(contentItems.id, id))
-        .returning();
+      // Update content item and campaigns
+      const updatedItem = await ctx.db.transaction(async (tx) => {
+        const [item] = await tx
+          .update(contentItems)
+          .set({
+            ...updates,
+            ...(currentUrl && { currentUrl }),
+            previousUrls,
+            updatedAt: new Date(),
+          })
+          .where(eq(contentItems.id, id))
+          .returning();
 
-      // Update campaigns if provided
-      if (campaignIds !== undefined) {
-        // Delete existing campaign links
-        await ctx.db
-          .delete(contentCampaigns)
-          .where(eq(contentCampaigns.contentItemId, id));
-
-        // Insert new campaign links
-        if (campaignIds.length > 0) {
-          await ctx.db.insert(contentCampaigns).values(
-            campaignIds.map((campaignId) => ({
-              contentItemId: id,
-              campaignId,
-            }))
-          );
+        if (!item) {
+          throw new Error("Failed to update content item");
         }
-      }
+
+        // Update campaigns if provided
+        if (campaignIds !== undefined) {
+          // Delete existing campaign links
+          await tx
+            .delete(contentCampaigns)
+            .where(eq(contentCampaigns.contentItemId, id));
+
+          // Insert new campaign links
+          if (campaignIds.length > 0) {
+            await tx.insert(contentCampaigns).values(
+              campaignIds.map((campaignId) => ({
+                contentItemId: id,
+                campaignId,
+              }))
+            );
+          }
+        }
+
+        return item;
+      });
 
       return updatedItem;
     }),
