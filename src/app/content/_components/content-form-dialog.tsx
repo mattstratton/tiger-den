@@ -191,8 +191,8 @@ export function ContentFormDialog({
                   <div className="rounded-lg border p-3 bg-muted/50">
                     <h4 className="text-sm font-medium mb-2">URL History</h4>
                     <div className="space-y-1">
-                      {existingContent.previousUrls.map((url, i) => (
-                        <div key={i} className="text-sm text-muted-foreground">
+                      {existingContent.previousUrls.map((url) => (
+                        <div key={url} className="text-sm text-muted-foreground">
                           <a
                             href={url}
                             target="_blank"
@@ -376,7 +376,9 @@ export function ContentFormDialog({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Created:</span>{" "}
-                    {format(new Date(existingContent.createdAt), "MMM d, yyyy")}
+                    {existingContent.createdAt
+                      ? format(new Date(existingContent.createdAt), "MMM d, yyyy")
+                      : "N/A"}
                   </div>
                 </div>
               </div>
