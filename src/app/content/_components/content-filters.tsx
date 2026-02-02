@@ -1,7 +1,17 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -40,7 +50,19 @@ const CONTENT_TYPES = [
 export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const { data: campaigns } = api.campaigns.list.useQuery();
+  const utils = api.useUtils();
+
+  const deleteAllMutation = api.content.deleteAll.useMutation({
+    onSuccess: () => {
+      void utils.content.list.invalidate();
+      setShowDeleteAllDialog(false);
+    },
+    onError: (error) => {
+      console.error("Failed to delete all content:", error);
+    },
+  });
 
   const hasActiveFilters =
     filters.search.length > 0 ||
@@ -133,6 +155,14 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
               Import CSV
             </Button>
             <Button variant="outline">Export CSV</Button>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteAllDialog(true)}
+              className="ml-2"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All
+            </Button>
           </div>
         </div>
       </div>
@@ -146,6 +176,30 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
       />
+
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Content?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete{" "}
+              <strong>all content items</strong> from the database.
+              <br />
+              <br />
+              This is a testing feature. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAllMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete All Content
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -278,4 +278,12 @@ export const contentRouter = createTRPCRouter({
 
       return item;
     }),
+
+  deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
+    // Delete all content items (for testing purposes)
+    // This will cascade delete all content_campaigns relationships
+    await ctx.db.delete(contentItems);
+
+    return { success: true, message: "All content items deleted" };
+  }),
 });
