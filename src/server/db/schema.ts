@@ -7,10 +7,31 @@ import {
   text,
   timestamp,
   varchar,
+  uuid,
+  date,
+  pgEnum,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // Use the dedicated tiger_den schema that was set up by 0perator
 const tigerDenSchema = pgSchema("tiger_den");
+
+// Enums in tiger_den schema
+export const contentTypeEnum = tigerDenSchema.enum("content_type", [
+  "youtube_video",
+  "blog_post",
+  "case_study",
+  "website_content",
+  "third_party",
+  "other",
+]);
+
+export const sourceEnum = tigerDenSchema.enum("source", [
+  "manual",
+  "csv_import",
+  "cms_api",
+  "asana_webhook",
+]);
 
 export const posts = tigerDenSchema.table(
   "post",
@@ -102,4 +123,71 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, { fields: [session.userId], references: [user.id] }),
+}));
+
+// Content Items table
+export const contentItems = tigerDenSchema.table("content_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  currentUrl: text("current_url").notNull(),
+  previousUrls: text("previous_urls").array(),
+  contentType: contentTypeEnum("content_type").notNull(),
+  publishDate: date("publish_date"),
+  description: text("description"),
+  author: text("author"),
+  targetAudience: text("target_audience"),
+  tags: text("tags").array(),
+  source: sourceEnum("source").notNull().default("manual"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdByUserId: uuid("created_by_user_id").notNull(),
+}, (table) => ({
+  currentUrlIdx: index("content_items_current_url_idx").on(table.currentUrl),
+  contentTypeIdx: index("content_items_content_type_idx").on(table.contentType),
+  publishDateIdx: index("content_items_publish_date_idx").on(table.publishDate),
+  createdAtIdx: index("content_items_created_at_idx").on(table.createdAt),
+}));
+
+// Campaigns table
+export const campaigns = tigerDenSchema.table("campaigns", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Junction table for content items and campaigns
+export const contentCampaigns = tigerDenSchema.table(
+  "content_campaigns",
+  {
+    contentItemId: uuid("content_item_id")
+      .notNull()
+      .references(() => contentItems.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.contentItemId, table.campaignId] }),
+  })
+);
+
+// Relations
+export const contentItemsRelations = relations(contentItems, ({ many }) => ({
+  campaigns: many(contentCampaigns),
+}));
+
+export const campaignsRelations = relations(campaigns, ({ many }) => ({
+  contentItems: many(contentCampaigns),
+}));
+
+export const contentCampaignsRelations = relations(contentCampaigns, ({ one }) => ({
+  contentItem: one(contentItems, {
+    fields: [contentCampaigns.contentItemId],
+    references: [contentItems.id],
+  }),
+  campaign: one(campaigns, {
+    fields: [contentCampaigns.campaignId],
+    references: [campaigns.id],
+  }),
 }));

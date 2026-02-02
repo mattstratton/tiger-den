@@ -9,4 +9,7 @@ export default {
     url: env.DATABASE_URL,
   },
   schemaFilter: ["tiger_den"],
+  migrations: {
+    schema: "tiger_den",
+  },
 } satisfies Config;
