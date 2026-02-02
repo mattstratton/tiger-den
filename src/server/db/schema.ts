@@ -2,36 +2,36 @@ import { relations } from "drizzle-orm";
 import {
   boolean,
   index,
-  pgTable,
-  pgTableCreator,
+  integer,
+  pgSchema,
   text,
   timestamp,
+  varchar,
 } from "drizzle-orm/pg-core";
 
-export const createTable = pgTableCreator((name) => `pg-drizzle_${name}`);
+// Use the dedicated tiger_den schema that was set up by 0perator
+const tigerDenSchema = pgSchema("tiger_den");
 
-export const posts = createTable(
+export const posts = tigerDenSchema.table(
   "post",
-  (d) => ({
-    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    name: d.varchar({ length: 256 }),
-    createdById: d
-      .varchar({ length: 255 })
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    name: varchar("name", { length: 256 }),
+    createdById: varchar("created_by_id", { length: 255 })
       .notNull()
       .references(() => user.id),
-    createdAt: d
-      .timestamp({ withTimezone: true })
+    createdAt: timestamp("created_at", { withTimezone: true })
       .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
-  }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+  },
   (t) => [
     index("created_by_idx").on(t.createdById),
     index("name_idx").on(t.name),
   ]
 );
 
-export const user = pgTable("user", {
+export const user = tigerDenSchema.table("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -47,7 +47,7 @@ export const user = pgTable("user", {
     .notNull(),
 });
 
-export const session = pgTable("session", {
+export const session = tigerDenSchema.table("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),
   token: text("token").notNull().unique(),
@@ -60,7 +60,7 @@ export const session = pgTable("session", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
-export const account = pgTable("account", {
+export const account = tigerDenSchema.table("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
@@ -78,7 +78,7 @@ export const account = pgTable("account", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
-export const verification = pgTable("verification", {
+export const verification = tigerDenSchema.table("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
