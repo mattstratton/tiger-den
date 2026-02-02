@@ -242,6 +242,15 @@ export const contentRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify item exists first
+      const existing = await ctx.db.query.contentItems.findFirst({
+        where: eq(contentItems.id, input.id),
+      });
+
+      if (!existing) {
+        throw new Error("Content item not found");
+      }
+
       await ctx.db
         .delete(contentItems)
         .where(eq(contentItems.id, input.id));

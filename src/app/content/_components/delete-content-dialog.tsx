@@ -32,6 +32,10 @@ export function DeleteContentDialog({
       void utils.content.list.invalidate();
       onOpenChange(false);
     },
+    onError: (error) => {
+      console.error('Failed to delete content:', error);
+      // Dialog stays open so user can see the error and retry
+    },
   });
 
   const handleDelete = () => {
