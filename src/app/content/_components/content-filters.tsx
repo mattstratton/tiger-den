@@ -65,6 +65,7 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
             onChange={(e) =>
               onFiltersChange({ ...filters, search: e.target.value })
             }
+            aria-label="Search content by title, description, or URL"
           />
 
           <Select
@@ -112,7 +113,11 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
           </Select>
 
           {hasActiveFilters && (
-            <Button variant="ghost" onClick={handleClearFilters}>
+            <Button
+              variant="ghost"
+              onClick={handleClearFilters}
+              aria-label="Clear all filters"
+            >
               <X className="h-4 w-4 mr-2" />
               Clear
             </Button>

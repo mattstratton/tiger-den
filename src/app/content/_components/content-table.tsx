@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -28,25 +28,28 @@ interface ContentTableProps {
 
 export function ContentTable({ filters }: ContentTableProps) {
   const [page, setPage] = useState(0);
-  const [previousFilters, setPreviousFilters] = useState(filters);
   const pageSize = 50;
   const [editingId, setEditingId] = useState<string | undefined>();
   const [deletingItem, setDeletingItem] = useState<
     { id: string; title: string } | undefined
   >();
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
 
   // Reset page to 0 when filters change
-  if (
-    filters.search !== previousFilters.search ||
-    filters.contentTypes.join(",") !== previousFilters.contentTypes.join(",") ||
-    filters.campaignIds.join(",") !== previousFilters.campaignIds.join(",")
-  ) {
+  useEffect(() => {
     setPage(0);
-    setPreviousFilters(filters);
-  }
+  }, [filters.search, filters.contentTypes, filters.campaignIds]);
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
 
   const { data, isLoading } = api.content.list.useQuery({
-    search: filters.search.length > 0 ? filters.search : undefined,
+    search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
     contentTypes: filters.contentTypes.length > 0
       ? (filters.contentTypes as ("youtube_video" | "blog_post" | "case_study" | "website_content" | "third_party" | "other")[])
       : undefined,
