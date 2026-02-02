@@ -50,6 +50,19 @@ export const contentRouter = createTRPCRouter({
         conditions.push(lte(contentItems.publishDate, input.publishDateTo));
       }
 
+      // Campaign filter
+      if (input.campaignIds && input.campaignIds.length > 0) {
+        conditions.push(
+          inArray(
+            contentItems.id,
+            ctx.db
+              .selectDistinct({ id: contentCampaigns.contentItemId })
+              .from(contentCampaigns)
+              .where(inArray(contentCampaigns.campaignId, input.campaignIds))
+          )
+        );
+      }
+
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       const items = await ctx.db.query.contentItems.findMany({
