@@ -15,7 +15,11 @@ const csvRowSchema = z.object({
     "third_party",
     "other",
   ]),
-  publish_date: z.string().optional(),
+  publish_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .optional()
+    .or(z.literal("")),
   description: z.string().optional(),
   author: z.string().optional(),
   target_audience: z.string().optional(),
@@ -40,6 +44,7 @@ export const csvRouter = createTRPCRouter({
       let successful = 0;
       let failed = 0;
       const errors: ImportError[] = [];
+      const processedUrls = new Set<string>();
 
       // Process each row
       for (let i = 0; i < input.rows.length; i++) {
@@ -50,13 +55,18 @@ export const csvRouter = createTRPCRouter({
           // Validate row
           const validatedRow = csvRowSchema.parse(row);
 
-          // Check for duplicate URL
+          // Check for duplicate URL within CSV
+          if (processedUrls.has(validatedRow.current_url)) {
+            throw new Error("Duplicate URL in this CSV file");
+          }
+
+          // Check for duplicate URL in database
           const existing = await ctx.db.query.contentItems.findFirst({
             where: eq(contentItems.currentUrl, validatedRow.current_url),
           });
 
           if (existing) {
-            throw new Error(`Duplicate URL: ${validatedRow.current_url}`);
+            throw new Error("URL already exists in database");
           }
 
           // Parse tags (comma-separated)
@@ -69,30 +79,31 @@ export const csvRouter = createTRPCRouter({
             ? validatedRow.campaigns.split(",").map((name) => name.trim()).filter(Boolean)
             : [];
 
-          // Get or create campaigns
-          const campaignIds: string[] = [];
-          for (const campaignName of campaignNames) {
-            // Check if campaign exists
-            let campaign = await ctx.db.query.campaigns.findFirst({
-              where: eq(campaigns.name, campaignName),
-            });
-
-            // Create campaign if it doesn't exist
-            if (!campaign) {
-              const [newCampaign] = await ctx.db
-                .insert(campaigns)
-                .values({ name: campaignName })
-                .returning();
-              campaign = newCampaign;
-            }
-
-            if (campaign) {
-              campaignIds.push(campaign.id);
-            }
-          }
-
-          // Insert content item and link campaigns in a transaction
+          // Insert content item and link campaigns in a single transaction
           await ctx.db.transaction(async (tx) => {
+            // Get or create campaigns INSIDE transaction
+            const campaignIds: string[] = [];
+            for (const campaignName of campaignNames) {
+              // Check if campaign exists
+              let campaign = await tx.query.campaigns.findFirst({
+                where: eq(campaigns.name, campaignName),
+              });
+
+              // Create campaign if it doesn't exist
+              if (!campaign) {
+                const [newCampaign] = await tx
+                  .insert(campaigns)
+                  .values({ name: campaignName })
+                  .returning();
+                campaign = newCampaign;
+              }
+
+              if (campaign) {
+                campaignIds.push(campaign.id);
+              }
+            }
+
+            // Create content item
             const [item] = await tx
               .insert(contentItems)
               .values({
@@ -124,6 +135,8 @@ export const csvRouter = createTRPCRouter({
             }
           });
 
+          // Track processed URL after successful transaction
+          processedUrls.add(validatedRow.current_url);
           successful++;
         } catch (error) {
           failed++;

@@ -79,6 +79,23 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             return;
           }
 
+          // Check row count limit
+          if (rows.length > 1000) {
+            setResult({
+              successful: 0,
+              failed: 0,
+              errors: [
+                {
+                  row: 0,
+                  message:
+                    "CSV exceeds 1000 row limit. Please split into smaller files.",
+                },
+              ],
+            });
+            setImporting(false);
+            return;
+          }
+
           // Call the import mutation
           importMutation.mutate({ rows });
         },
@@ -103,6 +120,34 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     },
     multiple: false,
     disabled: importing,
+    maxSize: 5 * 1024 * 1024, // 5MB
+    onDropRejected: (fileRejections) => {
+      const rejection = fileRejections[0];
+      if (rejection?.errors[0]?.code === "file-too-large") {
+        setResult({
+          successful: 0,
+          failed: 0,
+          errors: [
+            {
+              row: 0,
+              message:
+                "File size exceeds 5MB limit. Please split into smaller files.",
+            },
+          ],
+        });
+      } else {
+        setResult({
+          successful: 0,
+          failed: 0,
+          errors: [
+            {
+              row: 0,
+              message: rejection?.errors[0]?.message ?? "File rejected",
+            },
+          ],
+        });
+      }
+    },
   });
 
   const handleDownloadTemplate = () => {
