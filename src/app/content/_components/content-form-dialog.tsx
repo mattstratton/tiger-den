@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
 import { Calendar } from "~/components/ui/calendar";
 import {
   Popover,
@@ -184,6 +185,27 @@ export function ContentFormDialog({
                   </FormItem>
                 )}
               />
+
+              {existingContent?.previousUrls &&
+                existingContent.previousUrls.length > 0 && (
+                  <div className="rounded-lg border p-3 bg-muted/50">
+                    <h4 className="text-sm font-medium mb-2">URL History</h4>
+                    <div className="space-y-1">
+                      {existingContent.previousUrls.map((url, i) => (
+                        <div key={i} className="text-sm text-muted-foreground">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {url}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               <FormField
                 control={form.control}
@@ -343,6 +365,22 @@ export function ContentFormDialog({
                 )}
               />
             </div>
+
+            {existingContent && (
+              <div className="space-y-2 pt-4 border-t">
+                <h3 className="text-sm font-semibold">Metadata</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Source:</span>{" "}
+                    <Badge variant="secondary">{existingContent.source}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Created:</span>{" "}
+                    {format(new Date(existingContent.createdAt), "MMM d, yyyy")}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2">
               <Button
