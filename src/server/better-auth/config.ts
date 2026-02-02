@@ -22,32 +22,11 @@ import { db } from "~/server/db";
  */
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
-  trustedOrigins: [env.BETTER_AUTH_URL || "http://localhost:3000"],
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
-  // Cookie and security settings for Vercel
-  advanced: {
-    useSecureCookies: process.env.NODE_ENV === "production",
-    cookiePrefix: "tiger-den",
-    crossSubDomainCookies: {
-      enabled: false,
-    },
-  },
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutes
-    },
-  },
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: ["google"],
-    },
-  },
   emailAndPassword: {
-    enabled: true, // Keep email/password as backup authentication method
+    enabled: true,
   },
   // Conditionally enable Google OAuth only when credentials are provided
   socialProviders: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
