@@ -6,7 +6,7 @@ export default function DebugEnv() {
       <h1 className="text-2xl font-bold mb-4">Environment Debug</h1>
       <div className="space-y-2 font-mono text-sm">
         <div>
-          <strong>BETTER_AUTH_URL:</strong> {env.BETTER_AUTH_URL || "NOT SET"}
+          <strong>AUTH_URL:</strong> {env.AUTH_URL || "NOT SET"}
         </div>
         <div>
           <strong>NODE_ENV:</strong> {process.env.NODE_ENV}
@@ -15,7 +15,7 @@ export default function DebugEnv() {
           <strong>Has Google Client ID:</strong> {env.GOOGLE_CLIENT_ID ? "YES" : "NO"}
         </div>
         <div>
-          <strong>Has Auth Secret:</strong> {env.BETTER_AUTH_SECRET ? "YES" : "NO"}
+          <strong>Has Auth Secret:</strong> {env.AUTH_SECRET ? "YES" : "NO"}
         </div>
       </div>
     </div>
