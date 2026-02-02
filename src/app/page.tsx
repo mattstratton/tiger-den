@@ -3,12 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, FileText, FolderKanban, Upload } from "lucide-react";
 
-import { auth } from "~/server/better-auth";
-import { getSession } from "~/server/better-auth/server";
+import { auth, signIn } from "~/server/auth";
 import { HydrateClient } from "~/trpc/server";
 
 export default async function Home() {
-  const session = await getSession();
+  const session = await auth();
 
   // Redirect to content page if already signed in
   if (session) {
@@ -67,22 +66,15 @@ export default async function Home() {
             <p className="text-lg text-muted-foreground">
               Sign in with your Google account to get started
             </p>
-            <form>
+            <form
+              action={async () => {
+                "use server";
+                await signIn("google", { redirectTo: "/content" });
+              }}
+            >
               <button
+                type="submit"
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                formAction={async () => {
-                  "use server";
-                  const res = await auth.api.signInSocial({
-                    body: {
-                      provider: "google",
-                      callbackURL: "/content",
-                    },
-                  });
-                  if (!res.url) {
-                    throw new Error("No URL returned from signInSocial");
-                  }
-                  redirect(res.url);
-                }}
               >
                 Sign in with Google
                 <ArrowRight className="h-4 w-4" />
