@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
+import * as schema from "~/server/db/schema";
 
 /**
  * Better Auth Configuration
@@ -21,48 +22,23 @@ import { db } from "~/server/db";
  * Email/password authentication is also enabled as a fallback.
  */
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
   database: drizzleAdapter(db, {
     provider: "pg",
+    schema,
   }),
-  advanced: {
-    // Use secure cookies in production (HTTPS)
-    useSecureCookies: process.env.NODE_ENV === "production",
-    // Explicit cookie settings for Vercel
-    cookieCache: {
-      enabled: true,
-      maxAge: 300, // 5 minutes
-    },
-  },
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 300,
-    },
-  },
-  account: {
-    // Skip state cookie check for localhost development (HTTP cookies issue)
-    skipStateCookieCheck: process.env.NODE_ENV === "development",
-  },
-  emailAndPassword: {
-    enabled: true,
-  },
-  // Conditionally enable Google OAuth only when credentials are provided
-  socialProviders: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? {
-        google: {
-          clientId: env.GOOGLE_CLIENT_ID,
-          clientSecret: env.GOOGLE_CLIENT_SECRET,
-          // Domain restriction - only allow sign-ins from specified Google Workspace domain
-          // This uses the 'hd' (hosted domain) parameter which is part of Google's OAuth spec
-          ...(env.GOOGLE_HOSTED_DOMAIN && {
-            authorizationParams: {
-              hd: env.GOOGLE_HOSTED_DOMAIN,
-            },
-          }),
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
+      redirectURI: `${env.BETTER_AUTH_URL || "http://localhost:3000"}/api/auth/callback/google`,
+      // Domain restriction - only allow sign-ins from specified Google Workspace domain
+      ...(env.GOOGLE_HOSTED_DOMAIN && {
+        authorizationParams: {
+          hd: env.GOOGLE_HOSTED_DOMAIN,
         },
-      }
-    : undefined,
+      }),
+    },
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;
