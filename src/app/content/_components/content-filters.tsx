@@ -8,9 +8,9 @@ export function ContentFilters() {
     <div className="mb-6 space-y-4">
       <div className="flex gap-4">
         <Input
-          type="search"
-          placeholder="Search content..."
           className="max-w-sm"
+          placeholder="Search content..."
+          type="search"
         />
         <Button variant="outline">Filter</Button>
         <div className="ml-auto flex gap-2">
