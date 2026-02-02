@@ -25,6 +25,14 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  advanced: {
+    // Use secure cookies in production (HTTPS)
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
+  account: {
+    // Skip state cookie check for localhost development (HTTP cookies issue)
+    skipStateCookieCheck: process.env.NODE_ENV === "development",
+  },
   emailAndPassword: {
     enabled: true,
   },
