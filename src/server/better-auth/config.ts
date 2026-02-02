@@ -22,9 +22,6 @@ import { db } from "~/server/db";
  */
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
-  trustedOrigins: process.env.NODE_ENV === "production"
-    ? [env.BETTER_AUTH_URL || ""]
-    : undefined,
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
