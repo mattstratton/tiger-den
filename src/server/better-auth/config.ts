@@ -28,6 +28,17 @@ export const auth = betterAuth({
   advanced: {
     // Use secure cookies in production (HTTPS)
     useSecureCookies: process.env.NODE_ENV === "production",
+    // Explicit cookie settings for Vercel
+    cookieCache: {
+      enabled: true,
+      maxAge: 300, // 5 minutes
+    },
+  },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 300,
+    },
   },
   account: {
     // Skip state cookie check for localhost development (HTTP cookies issue)
