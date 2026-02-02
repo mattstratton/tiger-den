@@ -11,7 +11,7 @@ Centralized database for all marketing content inventory. Supports manual entry,
 ## Tech Stack
 
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4
-- **Backend**: tRPC, Better Auth with Google OAuth
+- **Backend**: tRPC, NextAuth.js v5 with Google OAuth
 - **Database**: PostgreSQL (TimescaleDB) with Drizzle ORM
 - **State Management**: TanStack Query (React Query) v5
 
@@ -65,9 +65,10 @@ npm run check        # Linter and type checks
 - Pagination (50 items per page)
 
 ### Authentication
-- Google OAuth via Better Auth
+- Google OAuth via NextAuth.js v5
 - Domain restriction (GOOGLE_HOSTED_DOMAIN)
 - All features require authentication
+- Server-side session management with database storage
 
 ## Key Patterns
 
@@ -126,4 +127,5 @@ Tracked for future implementation:
 Target: Vercel
 - Set all environment variables in Vercel project settings
 - Use Tiger Cloud connection string for DATABASE_URL
-- Set BETTER_AUTH_URL to production domain
+- Set AUTH_URL to production domain
+- Set AUTH_SECRET using: openssl rand -base64 32

@@ -26,7 +26,7 @@ Tiger Den helps marketing teams track and manage their published content across 
 - **Database:** PostgreSQL (TimescaleDB via Tiger Cloud)
 - **ORM:** [Drizzle](https://orm.drizzle.team)
 - **API:** [tRPC](https://trpc.io)
-- **Authentication:** [Better Auth](https://www.better-auth.com)
+- **Authentication:** [NextAuth.js v5](https://authjs.dev)
 - **State Management:** [TanStack Query (React Query) v5](https://tanstack.com/query)
 
 ## Prerequisites
@@ -64,15 +64,17 @@ Update `.env` with your values:
 # Database
 DATABASE_URL="postgresql://user:password@host:port/database?sslmode=require"
 
-# Auth
-BETTER_AUTH_SECRET="generate-with-openssl-rand-base64-32"
-BETTER_AUTH_URL="http://localhost:3000"
+# NextAuth.js
+AUTH_SECRET="your-secret-here"  # Generate with: openssl rand -base64 32
+AUTH_URL="http://localhost:3000"  # Or your production URL
+
+# Google OAuth
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 GOOGLE_HOSTED_DOMAIN="yourcompany.com"  # Optional: restrict to your domain
 ```
 
-**Generate Better Auth Secret:**
+**Generate Auth Secret:**
 ```bash
 openssl rand -base64 32
 ```
@@ -140,7 +142,7 @@ tiger-den/
 │   │   └── _components/     # Shared components
 │   ├── server/
 │   │   ├── api/            # tRPC routers
-│   │   ├── better-auth/    # Authentication config
+│   │   ├── auth/           # NextAuth.js configuration
 │   │   └── db/             # Database schema and connection
 │   ├── styles/             # Global CSS and Tailwind config
 │   └── trpc/               # tRPC client setup
@@ -158,7 +160,7 @@ The application uses three main tables in the `tiger_den` schema:
 - **campaigns** - Marketing campaigns
 - **content_campaigns** - Junction table for many-to-many relationships
 
-Plus Better Auth tables for user authentication (user, session, account).
+Plus NextAuth.js tables for user authentication (users, sessions, accounts, verification_tokens).
 
 ## CSV Import Format
 
