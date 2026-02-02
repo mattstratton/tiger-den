@@ -30,6 +30,15 @@
 - Consider adding date format selection in import dialog
 - Document accepted formats in template
 
+## Other Features
+
+### Metadata enrichment
+When importing, if the TITLE field is blank on an import, we might be able to do something where the system goes to the URL and pulls in the TITLE attribute of the webpage? Let's discuss how best to do this (during import or maybe there's an async enrichment job?)
+
+### Update README and main page
+the readme file should explain how it works and how to set it upload
+the main home page is generic T3 app right now, we need better content
+
 ---
 
 ## Deferred Features
