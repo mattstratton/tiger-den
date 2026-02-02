@@ -1,101 +1,105 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowRight, FileText, FolderKanban, Upload } from "lucide-react";
 
-import { LatestPost } from "~/app/_components/post";
 import { auth } from "~/server/better-auth";
 import { getSession } from "~/server/better-auth/server";
-import { api, HydrateClient } from "~/trpc/server";
+import { HydrateClient } from "~/trpc/server";
 
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
   const session = await getSession();
 
+  // Redirect to content page if already signed in
   if (session) {
-    void api.post.getLatest.prefetch();
+    redirect("/content");
   }
 
   return (
     <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-          </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
-            </Link>
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
-            </Link>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
+          {/* Hero Section */}
+          <div className="flex flex-col items-center gap-4 text-center">
+            <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+              Tiger Den
+            </h1>
+            <p className="max-w-2xl text-xl text-muted-foreground sm:text-2xl">
+              Content inventory tracking for marketing teams
             </p>
+          </div>
 
-            <div className="flex flex-col items-center justify-center gap-4">
-              <p className="text-center text-2xl text-white">
-                {session && <span>Logged in as {session.user?.name}</span>}
+          {/* Feature Cards */}
+          <div className="grid w-full max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">Content Management</h3>
+              <p className="text-sm text-muted-foreground">
+                Track all your published content across YouTube, blogs, case studies, and more
               </p>
-              {!session ? (
-                <form>
-                  <button
-                    className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
-                    formAction={async () => {
-                      "use server";
-                      const res = await auth.api.signInSocial({
-                        body: {
-                          provider: "google",
-                          callbackURL: "/",
-                        },
-                      });
-                      if (!res.url) {
-                        throw new Error("No URL returned from signInSocial");
-                      }
-                      redirect(res.url);
-                    }}
-                  >
-                    Sign in with Google
-                  </button>
-                </form>
-              ) : (
-                <form>
-                  <button
-                    className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
-                    formAction={async () => {
-                      "use server";
-                      await auth.api.signOut({
-                        headers: await headers(),
-                      });
-                      redirect("/");
-                    }}
-                  >
-                    Sign out
-                  </button>
-                </form>
-              )}
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
+                <FolderKanban className="h-6 w-6 text-accent" />
+              </div>
+              <h3 className="text-lg font-semibold">Campaign Tracking</h3>
+              <p className="text-sm text-muted-foreground">
+                Organize content by marketing campaigns with powerful search and filtering
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-2/10">
+                <Upload className="h-6 w-6 text-chart-2" />
+              </div>
+              <h3 className="text-lg font-semibold">CSV Import</h3>
+              <p className="text-sm text-muted-foreground">
+                Bulk import content from CSV files with validation and auto-campaign creation
+              </p>
             </div>
           </div>
 
-          {session?.user && <LatestPost />}
+          {/* CTA Section */}
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-lg text-muted-foreground">
+              Sign in with your Google account to get started
+            </p>
+            <form>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                formAction={async () => {
+                  "use server";
+                  const res = await auth.api.signInSocial({
+                    body: {
+                      provider: "google",
+                      callbackURL: "/content",
+                    },
+                  });
+                  if (!res.url) {
+                    throw new Error("No URL returned from signInSocial");
+                  }
+                  redirect(res.url);
+                }}
+              >
+                Sign in with Google
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+
+          {/* Footer Links */}
+          <div className="flex gap-6 text-sm text-muted-foreground">
+            <Link href="/content" className="hover:text-foreground transition-colors">
+              Content
+            </Link>
+            <span>•</span>
+            <Link href="/campaigns" className="hover:text-foreground transition-colors">
+              Campaigns
+            </Link>
+          </div>
         </div>
       </main>
     </HydrateClient>
