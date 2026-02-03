@@ -132,12 +132,16 @@ export async function processImportWithProgress(
 
     try {
       // Normalize date format if present
-      if (row.publish_date && typeof row.publish_date === 'string') {
-        const parsedDate = parseFlexibleDate(row.publish_date);
-        if (parsedDate) {
-          row.publish_date = parsedDate;
+      if (typeof row.publish_date === 'string') {
+        if (row.publish_date.trim() === '') {
+          row.publish_date = undefined; // Empty → NULL
+        } else {
+          const parsedDate = parseFlexibleDate(row.publish_date);
+          if (parsedDate) {
+            row.publish_date = parsedDate;
+          }
+          // Leave unparseable dates for Zod to catch
         }
-        // If parsedDate is null, leave original value for Zod to catch
       }
 
       // Validate row
