@@ -9,6 +9,7 @@ import {
 } from "~/server/db/schema";
 import { generateEmbedding } from "~/server/services/embeddings";
 import { indexContent } from "~/server/services/indexing-orchestrator";
+import { keywordSearch } from "~/server/services/keyword-search";
 import { hybridSearch } from "~/server/services/search-service";
 
 export const contentRouter = createTRPCRouter({
@@ -365,6 +366,47 @@ export const contentRouter = createTRPCRouter({
 
       // Create a map for quick lookup
       const contentMap = new Map(contentItemsData.map((item) => [item.id, item]));
+
+      // Combine search results with content details
+      return searchResults.map((result) => ({
+        ...result,
+        contentItem: contentMap.get(result.contentItemId) ?? null,
+      }));
+    }),
+
+  keywordSearch: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      // Perform keyword-only search (BM25)
+      const searchResults = await keywordSearch(input.query, input.limit);
+
+      // Enrich results with content item details
+      const contentItemIds = searchResults.map((r) => r.contentItemId);
+
+      if (contentItemIds.length === 0) {
+        return [];
+      }
+
+      const contentItemsData = await ctx.db.query.contentItems.findMany({
+        where: inArray(contentItems.id, contentItemIds),
+        with: {
+          campaigns: {
+            with: {
+              campaign: true,
+            },
+          },
+        },
+      });
+
+      // Create a map for quick lookup
+      const contentMap = new Map(
+        contentItemsData.map((item) => [item.id, item]),
+      );
 
       // Combine search results with content details
       return searchResults.map((result) => ({

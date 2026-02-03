@@ -23,7 +23,7 @@ import { ReindexButton } from "./reindex-button";
 interface ContentTableProps {
   filters: {
     search: string;
-    searchMode: "metadata" | "fullContent";
+    searchMode: "metadata" | "keyword" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   };
@@ -51,9 +51,12 @@ export function ContentTable({ filters }: ContentTableProps) {
     return () => clearTimeout(timer);
   }, [filters.search]);
 
-  // Use hybrid search when in fullContent mode with a search query
+  // Determine which search mode to use
   const useHybridSearch =
     filters.searchMode === "fullContent" && debouncedSearch.length > 0;
+  const useKeywordSearch =
+    filters.searchMode === "keyword" && debouncedSearch.length > 0;
+  const useAdvancedSearch = useHybridSearch || useKeywordSearch;
 
   const { data: listData, isLoading: listLoading } = api.content.list.useQuery(
     {
@@ -75,36 +78,59 @@ export function ContentTable({ filters }: ContentTableProps) {
       offset: page * pageSize,
     },
     {
-      enabled: !useHybridSearch,
+      enabled: !useAdvancedSearch,
     },
   );
 
   const {
-    data: searchData,
-    isLoading: searchLoading,
+    data: hybridSearchData,
+    isLoading: hybridSearchLoading,
   } = api.content.hybridSearch.useQuery(
     {
       query: debouncedSearch,
       limit: pageSize,
     },
     {
-      enabled: useHybridSearch,
+      enabled: useAdvancedSearch,
     },
   );
 
-  const isLoading = useHybridSearch ? searchLoading : listLoading;
+  const {
+    data: keywordSearchData,
+    isLoading: keywordSearchLoading,
+  } = api.content.keywordSearch.useQuery(
+    {
+      query: debouncedSearch,
+      limit: pageSize,
+    },
+    {
+      enabled: useKeywordSearch,
+    },
+  );
+
+  const isLoading = useAdvancedSearch
+    ? hybridSearchLoading
+    : useKeywordSearch
+      ? keywordSearchLoading
+      : listLoading;
 
   if (isLoading) {
     return <div className="py-8 text-center">Loading...</div>;
   }
 
-  // Normalize data structure for both modes
+  // Normalize data structure for all modes
   type ItemWithSearch = NonNullable<typeof listData>["items"][number] & {
     relevanceScore?: number;
     matchedText?: string;
   };
 
-  const items: ItemWithSearch[] = useHybridSearch
+  const searchData = useAdvancedSearch
+    ? hybridSearchData
+    : useKeywordSearch
+      ? keywordSearchData
+      : null;
+
+  const items: ItemWithSearch[] = useAdvancedSearch
     ? (searchData
         ?.map((result) =>
           result.contentItem
@@ -132,7 +158,7 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Publish Date</TableHead>
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
-              {useHybridSearch && <TableHead>Relevance</TableHead>}
+              {useAdvancedSearch && <TableHead>Relevance</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
               <TableHead>Index Status</TableHead>
             </TableRow>
@@ -141,9 +167,9 @@ export function ContentTable({ filters }: ContentTableProps) {
             <TableRow>
               <TableCell
                 className="text-center text-muted-foreground"
-                colSpan={useHybridSearch ? 8 : 7}
+                colSpan={useAdvancedSearch ? 8 : 7}
               >
-                {useHybridSearch
+                {useAdvancedSearch
                   ? "No matching content found. Try a different search query."
                   : "No content items yet. Add your first content item to get started."}
               </TableCell>
@@ -165,7 +191,7 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Publish Date</TableHead>
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
-              {useHybridSearch && <TableHead>Relevance</TableHead>}
+              {useAdvancedSearch && <TableHead>Relevance</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
               <TableHead>Index Status</TableHead>
             </TableRow>
@@ -184,7 +210,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                       {item.title}
                       <ExternalLink className="h-3 w-3" />
                     </a>
-                    {useHybridSearch && item.matchedText && (
+                    {useAdvancedSearch && item.matchedText && (
                       <div className="max-w-md text-muted-foreground text-sm">
                         ...{item.matchedText.substring(0, 150)}...
                       </div>
@@ -209,7 +235,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>{item.author || "-"}</TableCell>
-                {useHybridSearch && (
+                {useAdvancedSearch && (
                   <TableCell>
                     <div className="text-sm">
                       {item.relevanceScore
@@ -251,7 +277,7 @@ export function ContentTable({ filters }: ContentTableProps) {
       </div>
 
       {/* Pagination */}
-      {!useHybridSearch && listData && (
+      {!useAdvancedSearch && listData && (
         <div className="mt-4 flex items-center justify-between">
           <div className="text-muted-foreground text-sm">
             Showing {page * pageSize + 1} to{" "}
@@ -276,7 +302,7 @@ export function ContentTable({ filters }: ContentTableProps) {
           </div>
         </div>
       )}
-      {useHybridSearch && (
+      {useAdvancedSearch && (
         <div className="mt-4 text-muted-foreground text-sm">
           Showing top {items.length} most relevant results
         </div>

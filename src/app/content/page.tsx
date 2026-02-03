@@ -7,7 +7,7 @@ import { ContentTable } from "./_components/content-table";
 export default function ContentPage() {
   const [filters, setFilters] = useState({
     search: "",
-    searchMode: "metadata" as "metadata" | "fullContent",
+    searchMode: "metadata" as "metadata" | "keyword" | "fullContent",
     contentTypes: [] as string[],
     campaignIds: [] as string[],
   });

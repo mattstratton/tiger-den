@@ -28,13 +28,13 @@ import { ImportCsvDialog } from "./import-csv-dialog";
 interface ContentFiltersProps {
   filters: {
     search: string;
-    searchMode: "metadata" | "fullContent";
+    searchMode: "metadata" | "keyword" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   };
   onFiltersChange: (filters: {
     search: string;
-    searchMode: "metadata" | "fullContent";
+    searchMode: "metadata" | "keyword" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   }) => void;
@@ -96,8 +96,10 @@ export function ContentFilters({
               }
               placeholder={
                 filters.searchMode === "fullContent"
-                  ? "Search full content..."
-                  : "Search titles & metadata..."
+                  ? "Search full content (AI)..."
+                  : filters.searchMode === "keyword"
+                    ? "Search keywords (BM25)..."
+                    : "Search titles & metadata..."
               }
               type="search"
               value={filters.search}
@@ -119,6 +121,20 @@ export function ContentFilters({
                 </button>
                 <button
                   className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "keyword"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "keyword" })
+                  }
+                  title="BM25 keyword search - no AI cost"
+                  type="button"
+                >
+                  Keywords (Free)
+                </button>
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
                     filters.searchMode === "fullContent"
                       ? "bg-blue-100 text-blue-700"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -126,9 +142,10 @@ export function ContentFilters({
                   onClick={() =>
                     onFiltersChange({ ...filters, searchMode: "fullContent" })
                   }
+                  title="Hybrid search with AI embeddings - uses OpenAI"
                   type="button"
                 >
-                  Full Content
+                  Full Content (AI)
                 </button>
               </div>
             )}
