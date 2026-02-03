@@ -67,6 +67,25 @@ Actually - should we be ingesting all of the actual text content etc of the cont
 - International: 15 February 2024
 - Dash formats: 02-15-2024 / 2-5-2024
 
+### Content Indexing & Hybrid Search
+**Completed:** 2026-02-03
+**Description:** Full-text search on crawled web pages and YouTube transcripts
+**Implementation:**
+- Tiger Cloud extensions: pg_textsearch (BM25), pgvectorscale (vectors), pgai (embeddings)
+- Hybrid search with RRF fusion (client-side)
+- Content fetcher: cheerio (web) + youtube-transcript (videos)
+- Chunking: 500-800 tokens with 50-token overlap
+- Sync indexing for ≤10 items, mark as pending for 11+
+- Manual re-index for failed/pending items
+- Status tracking and UI badges
+
+**Phase 2 (Future):**
+- Background job queue (BullMQ/pg-boss) for bulk indexing
+- Search result highlighting
+- Content freshness checks (re-crawl schedule)
+- REST API for external systems (Eon integration)
+- Analytics dashboard
+
 ---
 
 *Last Updated: 2026-02-03*
