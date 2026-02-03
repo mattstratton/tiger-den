@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Papa from "papaparse";
 import { Upload, Download, AlertCircle, CheckCircle } from "lucide-react";
@@ -38,6 +38,23 @@ interface ImportResult {
 export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState<{
+    phase: 'enriching' | 'validating' | 'inserting' | null;
+    current: number;
+    total: number;
+    percentage: number;
+    errorCount: number;
+    message: string;
+  } | null>(null);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [eventSource]);
 
   const utils = api.useUtils();
   const importMutation = api.csv.import.useMutation({
