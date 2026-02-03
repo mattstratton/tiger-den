@@ -14,12 +14,14 @@ Centralized database for all marketing content inventory. Supports manual entry,
 - **Backend**: tRPC, NextAuth.js v5 with Google OAuth
 - **Database**: PostgreSQL (TimescaleDB) with Drizzle ORM
 - **State Management**: TanStack Query (React Query) v5
+- **Search**: pg_textsearch (BM25), pgvector (embeddings), pgai (auto-embedding)
 
 ## Database
 
 - **Schema**: `tiger_den`
 - **User**: `tiger_den`
 - **Service**: Tiger Cloud (TimescaleDB)
+- **Content Indexing Tables**: `content_text`, `content_chunks`
 
 All tables use the `tiger_den` schema via `pgSchema()`.
 
@@ -75,6 +77,15 @@ npm run check        # Linter and type checks
 - Domain restriction (GOOGLE_HOSTED_DOMAIN)
 - All features require authentication
 - Server-side session management with database storage
+
+### Content Indexing & Hybrid Search
+- Full-text indexing of web pages and YouTube transcripts
+- Hybrid search: BM25 keyword + semantic vector with RRF fusion
+- Leverages Tiger Cloud: pg_textsearch, pgvectorscale, pgai Vectorizer
+- Sync indexing for ≤10 items (configurable threshold)
+- Async queue for bulk imports (Phase 2)
+- Manual re-index for failed/pending items
+- Status tracking: pending, indexed, failed
 
 ## Key Patterns
 
