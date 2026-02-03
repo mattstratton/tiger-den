@@ -73,7 +73,7 @@ export async function hybridSearch(
 
   // Run both queries in parallel
   const [keywordResults, semanticResults] = await Promise.all([
-    // Query 1: BM25 keyword search using Tiger Data's pg_textsearch
+    // Query 1: Full-text keyword search using PostgreSQL native search
     db.execute(sql`
       SELECT
         ct.content_item_id,
@@ -82,7 +82,7 @@ export async function hybridSearch(
       FROM tiger_den.content_chunks cc
       JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
       WHERE to_tsvector('english', cc.chunk_text) @@ plainto_tsquery('english', ${query})
-      ORDER BY ts_rank_bm25(to_tsvector('english', cc.chunk_text), plainto_tsquery('english', ${query})) DESC
+      ORDER BY ts_rank(to_tsvector('english', cc.chunk_text), plainto_tsquery('english', ${query})) DESC
       LIMIT ${candidateLimit}
     `),
 

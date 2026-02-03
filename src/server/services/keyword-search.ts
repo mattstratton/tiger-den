@@ -25,13 +25,13 @@ export async function keywordSearch(
   query: string,
   limit: number = 10,
 ): Promise<KeywordSearchResult[]> {
-  // Query: BM25 keyword search using Tiger Data's pg_textsearch
+  // Query: Full-text keyword search using PostgreSQL native search
   const results = await db.execute(sql`
     SELECT
       ct.content_item_id,
       cc.id as chunk_id,
       cc.chunk_text,
-      ts_rank_bm25(to_tsvector('english', cc.chunk_text), plainto_tsquery('english', ${query})) as score
+      ts_rank(to_tsvector('english', cc.chunk_text), plainto_tsquery('english', ${query})) as score
     FROM tiger_den.content_chunks cc
     JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
     WHERE to_tsvector('english', cc.chunk_text) @@ plainto_tsquery('english', ${query})

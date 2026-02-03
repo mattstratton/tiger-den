@@ -91,7 +91,7 @@ export function ContentTable({ filters }: ContentTableProps) {
       limit: pageSize,
     },
     {
-      enabled: useAdvancedSearch,
+      enabled: useHybridSearch,
     },
   );
 
