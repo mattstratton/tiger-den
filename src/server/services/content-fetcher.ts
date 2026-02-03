@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { encoding_for_model } from "tiktoken";
-import { YoutubeTranscript } from "youtube-transcript";
 import { indexingConfig } from "~/server/config/indexing-config";
+import { fetchYouTubeTranscriptViaYtdlp } from "./youtube-transcript-ytdlp";
 
 export interface FetchResult {
   plainText: string;
@@ -139,8 +139,8 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
 }
 
 /**
- * Fetch YouTube transcript
- * Uses youtube-transcript package
+ * Fetch YouTube transcript using yt-dlp
+ * Supports manual captions and auto-generated captions
  * Handles missing transcripts gracefully
  */
 export async function fetchYouTubeTranscript(
@@ -155,14 +155,24 @@ export async function fetchYouTubeTranscript(
       throw new ContentFetchError("Invalid YouTube URL", url);
     }
 
-    // Fetch transcript
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+    // Fetch transcript using yt-dlp
+    const result = await fetchYouTubeTranscriptViaYtdlp(videoId);
 
-    // Combine all text segments (strip timestamps)
-    const plainText = transcript.map((segment) => segment.text).join(" ");
+    // If no transcript available, return empty
+    if (!result) {
+      const duration = Date.now() - startTime;
+      return {
+        plainText: "",
+        fullText: "",
+        wordCount: 0,
+        tokenCount: 0,
+        duration,
+      };
+    }
 
+    const plainText = result.text;
     const fullText = plainText; // No HTML for transcripts
-    const wordCount = countWords(plainText);
+    const wordCount = result.wordCount;
     const tokenCount = await countTokens(plainText);
     const duration = Date.now() - startTime;
 
@@ -175,20 +185,6 @@ export async function fetchYouTubeTranscript(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-
-    // Transcript not available - return empty (don't fail)
-    if (
-      error instanceof Error &&
-      error.message.includes("Could not find transcript")
-    ) {
-      return {
-        plainText: "",
-        fullText: "",
-        wordCount: 0,
-        tokenCount: 0,
-        duration,
-      };
-    }
 
     throw new ContentFetchError(
       error instanceof Error ? error.message : "Unknown error",
