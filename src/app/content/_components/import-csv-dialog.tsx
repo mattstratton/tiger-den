@@ -122,29 +122,51 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             );
             setEventSource(es);
 
-            es.addEventListener("progress", (event) => {
-              const data = JSON.parse(event.data) as {
-                phase: 'enriching' | 'validating' | 'inserting';
-                current: number;
-                total: number;
-                percentage: number;
-                errorCount: number;
-                message: string;
-              };
-              setProgress(data);
-            });
+            // Handle all SSE messages
+            es.onmessage = (event) => {
+              try {
+                const data = JSON.parse(event.data);
 
-            es.addEventListener("complete", (event) => {
-              const data = JSON.parse(event.data) as ImportResult;
-              setResult(data);
-              setImporting(false);
-              setProgress(null);
-              es.close();
-              setEventSource(null);
-            });
+                if (data.type === 'progress') {
+                  setProgress({
+                    phase: data.phase,
+                    current: data.current,
+                    total: data.total,
+                    percentage: data.percentage,
+                    errorCount: data.errorCount,
+                    message: data.message,
+                  });
+                } else if (data.type === 'complete') {
+                  setResult({
+                    successful: data.successful,
+                    failed: data.failed,
+                    errors: data.errors,
+                    enrichment: data.enrichment,
+                  });
+                  setImporting(false);
+                  setProgress(null);
+                  es.close();
+                  setEventSource(null);
+                } else if (data.type === 'error') {
+                  console.error('Import error:', data.message);
+                  setResult({
+                    successful: 0,
+                    failed: 1,
+                    errors: [{ row: 0, message: data.message }],
+                  });
+                  setImporting(false);
+                  setProgress(null);
+                  es.close();
+                  setEventSource(null);
+                }
+              } catch (parseError) {
+                console.error('Failed to parse SSE message:', parseError);
+              }
+            };
 
-            es.addEventListener("error", (event) => {
-              console.error("EventSource error:", event);
+            // Handle connection errors
+            es.onerror = () => {
+              console.error("EventSource connection error");
               setResult({
                 successful: 0,
                 failed: 1,
@@ -152,12 +174,6 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               });
               setImporting(false);
               setProgress(null);
-              es.close();
-              setEventSource(null);
-            });
-
-            es.onerror = () => {
-              console.error("EventSource connection error");
               es.close();
               setEventSource(null);
             };
