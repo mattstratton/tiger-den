@@ -11,10 +11,18 @@ import {
   date,
   pgEnum,
   primaryKey,
+  customType,
 } from "drizzle-orm/pg-core";
 
 // Use the dedicated tiger_den schema that was set up by 0perator
 const tigerDenSchema = pgSchema("tiger_den");
+
+// Custom type for pgvector halfvec
+const halfvec = customType<{ data: number[] }>({
+  dataType(config) {
+    return `halfvec(${config?.dimension ?? 1536})`;
+  },
+});
 
 // Enums in tiger_den schema
 export const contentTypeEnum = tigerDenSchema.enum("content_type", [
@@ -180,6 +188,31 @@ export const contentText = tigerDenSchema.table("content_text", {
   statusIdx: index("content_text_status_idx").on(table.indexStatus),
 }));
 
+// Content chunks with embeddings for hybrid search
+export const contentChunks = tigerDenSchema.table("content_chunks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  contentTextId: uuid("content_text_id")
+    .notNull()
+    .references(() => contentText.id, { onDelete: "cascade" }),
+
+  // Chunk data
+  chunkText: text("chunk_text").notNull(),
+  chunkIndex: integer("chunk_index").notNull(),
+  chunkTokenCount: integer("chunk_token_count").notNull(),
+
+  // Vector embedding (halfvec for 50% storage savings)
+  embedding: halfvec("embedding", { dimension: 1536 }),
+
+  // Metadata
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueChunk: index("content_chunks_unique_idx").on(
+    table.contentTextId,
+    table.chunkIndex
+  ),
+  textIdIdx: index("content_chunks_text_id_idx").on(table.contentTextId),
+}));
+
 // Campaigns table
 export const campaigns = tigerDenSchema.table("campaigns", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -234,4 +267,11 @@ export const contentTextRelations = relations(contentText, ({ one, many }) => ({
     references: [contentItems.id],
   }),
   chunks: many(contentChunks),
+}));
+
+export const contentChunksRelations = relations(contentChunks, ({ one }) => ({
+  contentText: one(contentText, {
+    fields: [contentChunks.contentTextId],
+    references: [contentText.id],
+  }),
 }));
