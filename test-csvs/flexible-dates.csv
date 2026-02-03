@@ -2,11 +2,12 @@ title,current_url,content_type,publish_date,description,author,target_audience,c
 Current Format,https://example.com/test-1,blog_post,2024-02-15,YYYY-MM-DD format,Test Author,developers,Test Campaign,test
 US Slash,https://example.com/test-2,blog_post,02/15/2024,MM/DD/YYYY format,Test Author,developers,Test Campaign,test
 US Short Slash,https://example.com/test-3,blog_post,2/5/2024,M/D/YYYY format,Test Author,developers,Test Campaign,test
-Written Full,https://example.com/test-4,blog_post,February 15 2024,Full month name,Test Author,developers,Test Campaign,test
-Written Short,https://example.com/test-5,blog_post,Feb 15 2024,Short month name,Test Author,developers,Test Campaign,test
+Written Full,https://example.com/test-4,blog_post,February 15, 2024,Full month name,Test Author,developers,Test Campaign,test
+Written Short,https://example.com/test-5,blog_post,Feb 15, 2024,Short month name,Test Author,developers,Test Campaign,test
 Period Full,https://example.com/test-6,blog_post,January 20. 2026,Full month with period,Test Author,developers,Test Campaign,test
 Period Short,https://example.com/test-7,blog_post,Jan 20. 2026,Short month with period,Test Author,developers,Test Campaign,test
 International,https://example.com/test-8,blog_post,15 February 2024,Day first format,Test Author,developers,Test Campaign,test
 Dash Format,https://example.com/test-9,blog_post,02-15-2024,MM-DD-YYYY dashes,Test Author,developers,Test Campaign,test
+Dash Short Format,https://example.com/test-12,blog_post,2-5-2024,M-D-YYYY short dashes,Test Author,developers,Test Campaign,test
 Empty Date,https://example.com/test-10,blog_post,,Optional field empty,Test Author,developers,Test Campaign,test
 Invalid Date,https://example.com/test-11,blog_post,02/31/2024,Should fail validation,Test Author,developers,Test Campaign,test
