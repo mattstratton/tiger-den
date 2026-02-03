@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Papa from "papaparse";
-import { Upload, Download, AlertCircle, CheckCircle } from "lucide-react";
+import { Upload, Download, AlertCircle, CheckCircle, Loader2, CheckCircle2, Database } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,8 @@ import {
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Progress } from "~/components/ui/progress";
+import { Badge } from "~/components/ui/badge";
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -330,13 +332,75 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               <input {...getInputProps()} />
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               {importing ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Importing content items...
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Fetching titles from URLs...
-                  </p>
+                <div className="space-y-4 max-w-md mx-auto">
+                  {/* Progress bar */}
+                  <div className="space-y-2">
+                    <Progress value={progress?.percentage ?? 0} className="h-3" />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {progress?.current ?? 0} / {progress?.total ?? 0} items
+                      </span>
+                      <span>{progress?.percentage.toFixed(0) ?? 0}%</span>
+                    </div>
+                  </div>
+
+                  {/* Status message */}
+                  <div className="flex items-center justify-center gap-2">
+                    {progress?.phase === 'enriching' && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    )}
+                    {progress?.phase === 'validating' && (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    )}
+                    {progress?.phase === 'inserting' && (
+                      <Database className="h-4 w-4 text-primary" />
+                    )}
+                    <p className="text-sm font-medium">
+                      {progress?.message ?? "Starting import..."}
+                    </p>
+                  </div>
+
+                  {/* Error count badge */}
+                  {progress && progress.errorCount > 0 && (
+                    <div className="flex justify-center">
+                      <Badge variant="destructive" className="gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {progress.errorCount} {progress.errorCount === 1 ? "error" : "errors"}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {/* Phase indicators */}
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <div className={`flex items-center gap-1 ${progress?.phase === 'enriching' ? 'text-primary font-medium' : ''}`}>
+                      {progress?.phase === 'enriching' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3" />
+                      )}
+                      <span>Enrich</span>
+                    </div>
+                    <span>→</span>
+                    <div className={`flex items-center gap-1 ${progress?.phase === 'validating' ? 'text-primary font-medium' : ''}`}>
+                      {progress?.phase === 'validating' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : progress?.phase === 'inserting' ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <div className="h-3 w-3" />
+                      )}
+                      <span>Validate</span>
+                    </div>
+                    <span>→</span>
+                    <div className={`flex items-center gap-1 ${progress?.phase === 'inserting' ? 'text-primary font-medium' : ''}`}>
+                      {progress?.phase === 'inserting' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <div className="h-3 w-3" />
+                      )}
+                      <span>Insert</span>
+                    </div>
+                  </div>
                 </div>
               ) : isDragActive ? (
                 <p className="text-lg font-medium">Drop the CSV file here</p>
