@@ -1,5 +1,6 @@
 import { encoding_for_model } from "tiktoken";
 import * as cheerio from "cheerio";
+import { YoutubeTranscript } from "youtube-transcript";
 import { indexingConfig } from "~/server/config/indexing-config";
 
 export interface FetchResult {
@@ -131,6 +132,66 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
         url,
         error,
       );
+    }
+
+    throw new ContentFetchError(
+      error instanceof Error ? error.message : "Unknown error",
+      url,
+      error instanceof Error ? error : undefined,
+    );
+  }
+}
+
+/**
+ * Fetch YouTube transcript
+ * Uses youtube-transcript package
+ * Handles missing transcripts gracefully
+ */
+export async function fetchYouTubeTranscript(
+  url: string,
+): Promise<FetchResult> {
+  const startTime = Date.now();
+
+  try {
+    const videoId = extractYouTubeVideoId(url);
+
+    if (!videoId) {
+      throw new ContentFetchError("Invalid YouTube URL", url);
+    }
+
+    // Fetch transcript
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+
+    // Combine all text segments (strip timestamps)
+    const plainText = transcript.map((segment) => segment.text).join(" ");
+
+    const fullText = plainText; // No HTML for transcripts
+    const wordCount = countWords(plainText);
+    const tokenCount = await countTokens(plainText);
+    const duration = Date.now() - startTime;
+
+    return {
+      plainText,
+      fullText,
+      wordCount,
+      tokenCount,
+      duration,
+    };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    // Transcript not available - return empty (don't fail)
+    if (
+      error instanceof Error &&
+      error.message.includes("Could not find transcript")
+    ) {
+      return {
+        plainText: "",
+        fullText: "",
+        wordCount: 0,
+        tokenCount: 0,
+        duration,
+      };
     }
 
     throw new ContentFetchError(
