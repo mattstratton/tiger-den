@@ -17,6 +17,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    // Content indexing
+    INDEXING_SYNC_THRESHOLD: z.string().optional(),
+    INDEXING_TIMEOUT_MS: z.string().optional(),
+    ENABLE_CONTENT_INDEXING: z.string().optional(),
   },
 
   /**
@@ -40,6 +44,9 @@ export const env = createEnv({
     GOOGLE_HOSTED_DOMAIN: process.env.GOOGLE_HOSTED_DOMAIN,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    INDEXING_SYNC_THRESHOLD: process.env.INDEXING_SYNC_THRESHOLD,
+    INDEXING_TIMEOUT_MS: process.env.INDEXING_TIMEOUT_MS,
+    ENABLE_CONTENT_INDEXING: process.env.ENABLE_CONTENT_INDEXING,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

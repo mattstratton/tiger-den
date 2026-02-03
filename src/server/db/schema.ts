@@ -18,9 +18,9 @@ import {
 const tigerDenSchema = pgSchema("tiger_den");
 
 // Custom type for pgvector halfvec
-const halfvec = customType<{ data: number[] }>({
+const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>({
   dataType(config) {
-    return `halfvec(${config?.dimension ?? 1536})`;
+    return `halfvec(${(config as { dimension?: number } | undefined)?.dimension ?? 1536})`;
   },
 });
 
