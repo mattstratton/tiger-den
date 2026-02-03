@@ -54,6 +54,7 @@ npm run check        # Linter and type checks
 - Import content from CSV with validation
 - Auto-create campaigns during import
 - Skip invalid rows with error reporting
+- Auto-fetch page titles from URLs when title field is blank during import
 - Export filtered content to CSV
 - Template download
 

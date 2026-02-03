@@ -32,9 +32,6 @@
 
 ## Other Features
 
-### Metadata enrichment
-When importing, if the TITLE field is blank on an import, we might be able to do something where the system goes to the URL and pulls in the TITLE attribute of the webpage? Let's discuss how best to do this (during import or maybe there's an async enrichment job?)
-
 ---
 
 ## Deferred Features
@@ -43,6 +40,19 @@ When importing, if the TITLE field is blank on an import, we might be able to do
 **Status:** Deferred
 **Description:** Export filtered content to CSV file
 **Notes:** Intentionally skipped during initial implementation per user request
+
+---
+
+## Completed Features
+
+### Metadata Enrichment
+**Completed:** 2026-02-02
+**Description:** Auto-fetch page titles from URLs during CSV import when title field is blank
+**Implementation:**
+- Fetches HTML title tags with 5-second timeout
+- Shows enrichment progress during import
+- Displays enrichment summary in results
+- Gracefully handles failures (leaves title blank)
 
 ---
 
