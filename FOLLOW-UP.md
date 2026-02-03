@@ -21,11 +21,17 @@
 
 ## Other Features
 
+### CSV importer validator
+
+CSV import should offer the ablity to validate the importing CSV before the import begins (simple validation like proper fields/formatting) so that we don't get errors we could fix before it even tries to import
+
 ### Other metadata enrichment
 
 It would be helpful to add some fields that might include topics or technlogies - which we could then search on. Should also include a brief abstract/summary of the content piece.
 
 These can possibly be handled in import, but really would be very nice if there was a way to add some AI parsing/enrichment. Could happen as a background job so that it's not holding up import, etc. 
+
+Actually - should we be ingesting all of the actual text content etc of the content piece? then we can search on the content vs just the metadata. consider using things like pg_textsearch etc (feature of tigerdata)
 
 ---
 
