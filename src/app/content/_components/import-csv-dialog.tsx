@@ -28,6 +28,11 @@ interface ImportResult {
     message: string;
     field?: string;
   }>;
+  enrichment?: {
+    attempted: number;
+    successful: number;
+    failed: number;
+  };
 }
 
 export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
@@ -245,7 +250,14 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               <input {...getInputProps()} />
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               {importing ? (
-                <p className="text-lg font-medium">Importing...</p>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Importing content items...
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Fetching titles from URLs...
+                  </p>
+                </div>
               ) : isDragActive ? (
                 <p className="text-lg font-medium">Drop the CSV file here</p>
               ) : (
