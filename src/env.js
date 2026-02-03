@@ -23,6 +23,7 @@ export const env = createEnv({
     INDEXING_SYNC_THRESHOLD: z.string().optional(),
     INDEXING_TIMEOUT_MS: z.string().optional(),
     ENABLE_CONTENT_INDEXING: z.string().optional(),
+    OPENAI_API_KEY: z.string(),
   },
 
   /**
@@ -49,6 +50,7 @@ export const env = createEnv({
     INDEXING_SYNC_THRESHOLD: process.env.INDEXING_SYNC_THRESHOLD,
     INDEXING_TIMEOUT_MS: process.env.INDEXING_TIMEOUT_MS,
     ENABLE_CONTENT_INDEXING: process.env.ENABLE_CONTENT_INDEXING,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

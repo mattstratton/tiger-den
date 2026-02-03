@@ -7,7 +7,9 @@ import {
   contentItems,
   contentText,
 } from "~/server/db/schema";
+import { generateEmbedding } from "~/server/services/embeddings";
 import { indexContent } from "~/server/services/indexing-orchestrator";
+import { hybridSearch } from "~/server/services/search-service";
 
 export const contentRouter = createTRPCRouter({
   list: protectedProcedure
@@ -323,6 +325,52 @@ export const contentRouter = createTRPCRouter({
       });
 
       return indexStatus ?? null;
+    }),
+
+  hybridSearch: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      // Generate embedding for query
+      const embedding = await generateEmbedding(input.query);
+
+      // Perform hybrid search
+      const searchResults = await hybridSearch(
+        input.query,
+        embedding,
+        input.limit,
+      );
+
+      // Enrich results with content item details
+      const contentItemIds = searchResults.map((r) => r.contentItemId);
+
+      if (contentItemIds.length === 0) {
+        return [];
+      }
+
+      const contentItemsData = await ctx.db.query.contentItems.findMany({
+        where: inArray(contentItems.id, contentItemIds),
+        with: {
+          campaigns: {
+            with: {
+              campaign: true,
+            },
+          },
+        },
+      });
+
+      // Create a map for quick lookup
+      const contentMap = new Map(contentItemsData.map((item) => [item.id, item]));
+
+      // Combine search results with content details
+      return searchResults.map((result) => ({
+        ...result,
+        contentItem: contentMap.get(result.contentItemId) ?? null,
+      }));
     }),
 
   getById: protectedProcedure
