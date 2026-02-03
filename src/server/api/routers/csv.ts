@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 // CSV row schema with snake_case column names
 const csvRowSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().optional().or(z.literal("")),
   current_url: z.string().url("Invalid URL format"),
   content_type: z.enum([
     "youtube_video",
@@ -107,7 +107,7 @@ export const csvRouter = createTRPCRouter({
             const [item] = await tx
               .insert(contentItems)
               .values({
-                title: validatedRow.title,
+                title: validatedRow.title || validatedRow.current_url,
                 currentUrl: validatedRow.current_url,
                 contentType: validatedRow.content_type,
                 publishDate: validatedRow.publish_date,
