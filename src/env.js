@@ -23,7 +23,7 @@ export const env = createEnv({
     INDEXING_SYNC_THRESHOLD: z.string().optional(),
     INDEXING_TIMEOUT_MS: z.string().optional(),
     ENABLE_CONTENT_INDEXING: z.string().optional(),
-    OPENAI_API_KEY: z.string(),
+    OPENAI_API_KEY: z.string().optional(), // Only needed for Full Content (AI) search
   },
 
   /**
