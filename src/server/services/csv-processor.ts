@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
 import * as schema from "~/server/db/schema";
 import { fetchPageTitle } from "~/server/services/title-fetcher";
+import { parseFlexibleDate } from "~/server/utils/date-parser";
 
 const { contentItems, contentCampaigns, campaigns } = schema;
 
@@ -130,6 +131,15 @@ export async function processImportWithProgress(
     if (!row) continue;
 
     try {
+      // Normalize date format if present
+      if (row.publish_date && typeof row.publish_date === 'string') {
+        const parsedDate = parseFlexibleDate(row.publish_date);
+        if (parsedDate) {
+          row.publish_date = parsedDate;
+        }
+        // If parsedDate is null, leave original value for Zod to catch
+      }
+
       // Validate row
       const validatedRow = csvRowSchema.parse(row);
 
