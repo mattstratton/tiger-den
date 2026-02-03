@@ -157,6 +157,14 @@ export const contentRouter = createTRPCRouter({
         return item;
       });
 
+      // Index content
+      try {
+        await indexContent([{ id: newItem.id, url: newItem.currentUrl }]);
+      } catch (error) {
+        console.error("Content indexing failed:", error);
+        // Don't fail creation if indexing fails
+      }
+
       return newItem;
     }),
 
