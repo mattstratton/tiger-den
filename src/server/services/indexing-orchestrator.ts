@@ -30,7 +30,7 @@ function calculateHash(text: string): string {
  * Index a single content item
  * Fetches content, chunks it, stores in database
  */
-async function indexSingleItem(
+export async function indexSingleItem(
   contentItemId: string,
   url: string,
 ): Promise<IndexingResult> {
@@ -130,4 +130,83 @@ async function indexSingleItem(
             : "Unknown error",
     };
   }
+}
+
+/**
+ * Index multiple content items
+ * Sync for ≤10 items, mark as pending for 11+
+ */
+export async function indexContent(
+  items: Array<{ id: string; url: string }>,
+): Promise<IndexingStats> {
+  if (!indexingConfig.enableIndexing) {
+    return {
+      total: items.length,
+      succeeded: 0,
+      failed: 0,
+      results: items.map((item) => ({
+        success: false,
+        contentItemId: item.id,
+        error: "Content indexing disabled (ENABLE_CONTENT_INDEXING=false)",
+      })),
+    };
+  }
+
+  // Sync indexing for ≤ threshold
+  if (items.length <= indexingConfig.syncThreshold) {
+    const results: IndexingResult[] = [];
+
+    for (const item of items) {
+      const result = await indexSingleItem(item.id, item.url);
+      results.push(result);
+    }
+
+    const succeeded = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    return {
+      total: items.length,
+      succeeded,
+      failed,
+      results,
+    };
+  }
+
+  // Async indexing (Phase 2) - for now just mark as pending
+  // TODO: Implement background job queue (BullMQ/pg-boss)
+  const results: IndexingResult[] = [];
+
+  for (const item of items) {
+    try {
+      await db.insert(contentText).values({
+        contentItemId: item.id,
+        fullText: "",
+        plainText: "",
+        wordCount: 0,
+        tokenCount: 0,
+        contentHash: "",
+        crawlDurationMs: 0,
+        indexStatus: "pending",
+      });
+
+      results.push({
+        success: true,
+        contentItemId: item.id,
+      });
+    } catch (error) {
+      results.push({
+        success: false,
+        contentItemId: item.id,
+        error:
+          error instanceof Error ? error.message : "Failed to mark as pending",
+      });
+    }
+  }
+
+  return {
+    total: items.length,
+    succeeded: results.filter((r) => r.success).length,
+    failed: results.filter((r) => !r.success).length,
+    results,
+  };
 }
