@@ -1,6 +1,6 @@
-import { z, ZodError } from "zod";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { ZodError, z } from "zod";
 import * as schema from "~/server/db/schema";
 import { fetchPageTitle } from "~/server/services/title-fetcher";
 import { parseFlexibleDate } from "~/server/utils/date-parser";
@@ -136,8 +136,8 @@ export async function processImportWithProgress(
 
     try {
       // Normalize date format if present
-      if (typeof row.publish_date === 'string') {
-        if (row.publish_date.trim() === '') {
+      if (typeof row.publish_date === "string") {
+        if (row.publish_date.trim() === "") {
           row.publish_date = undefined; // Empty → NULL
         } else {
           const parsedDate = parseFlexibleDate(row.publish_date);
@@ -167,7 +167,10 @@ export async function processImportWithProgress(
 
       // Parse tags (comma-separated)
       const tags = validatedRow.tags
-        ? validatedRow.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        ? validatedRow.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
         : undefined;
 
       // Parse campaign names (comma-separated)

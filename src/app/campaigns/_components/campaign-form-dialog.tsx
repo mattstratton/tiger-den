@@ -1,10 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { api } from "~/trpc/react";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
-import { Button } from "~/components/ui/button";
+import { api } from "~/trpc/react";
 
 const campaignFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -46,7 +46,7 @@ export function CampaignFormDialog({
   // Fetch the campaign data for editing
   const { data: existingCampaign } = api.campaigns.getById.useQuery(
     { id: campaignId! },
-    { enabled: !!campaignId }
+    { enabled: !!campaignId },
   );
 
   const form = useForm<CampaignFormValues>({
@@ -70,7 +70,7 @@ export function CampaignFormDialog({
         description: "",
       });
     }
-  }, [existingCampaign, form, open]);
+  }, [existingCampaign, form]);
 
   const createMutation = api.campaigns.create.useMutation({
     onSuccess: () => {
@@ -79,7 +79,7 @@ export function CampaignFormDialog({
       form.reset();
     },
     onError: (error) => {
-      console.error('Failed to create campaign:', error);
+      console.error("Failed to create campaign:", error);
     },
   });
 
@@ -90,7 +90,7 @@ export function CampaignFormDialog({
       form.reset();
     },
     onError: (error) => {
-      console.error('Failed to update campaign:', error);
+      console.error("Failed to update campaign:", error);
     },
   });
 
@@ -110,7 +110,7 @@ export function CampaignFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -119,7 +119,7 @@ export function CampaignFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
               control={form.control}
               name="name"
@@ -143,9 +143,9 @@ export function CampaignFormDialog({
                   <FormControl>
                     <Textarea
                       {...field}
-                      value={field.value ?? ""}
                       placeholder="Campaign description..."
                       rows={3}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -155,15 +155,15 @@ export function CampaignFormDialog({
 
             <div className="flex justify-end gap-2">
               <Button
+                onClick={() => onOpenChange(false)}
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
               >
                 Cancel
               </Button>
               <Button
-                type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
+                type="submit"
               >
                 {campaignId ? "Update" : "Create"}
               </Button>

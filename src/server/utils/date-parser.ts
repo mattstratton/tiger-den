@@ -1,4 +1,4 @@
-import { parse, isValid, format } from 'date-fns';
+import { format, isValid, parse } from "date-fns";
 
 /**
  * Parse a date string in various common formats and return YYYY-MM-DD format.
@@ -21,7 +21,7 @@ import { parse, isValid, format } from 'date-fns';
  */
 export function parseFlexibleDate(dateString: string): string | null {
   // Handle empty/null input
-  if (!dateString || dateString.trim() === '') {
+  if (!dateString || dateString.trim() === "") {
     return null;
   }
 
@@ -30,16 +30,16 @@ export function parseFlexibleDate(dateString: string): string | null {
   // Format strings in priority order
   // Most common formats first for performance
   const formats = [
-    'yyyy-MM-dd',      // 2024-02-15 (current format)
-    'MM/dd/yyyy',      // 02/15/2024 (US format)
-    'M/d/yyyy',        // 2/5/2024 (US short)
-    'MMMM d, yyyy',    // February 15, 2024
-    'MMM d, yyyy',     // Feb 15, 2024
-    'MMMM d. yyyy',    // January 20. 2026
-    'MMM d. yyyy',     // Jan 20. 2026
-    'd MMMM yyyy',     // 15 February 2024 (international)
-    'MM-dd-yyyy',      // 02-15-2024 (dashes)
-    'M-d-yyyy',        // 2-5-2024 (short dashes)
+    "yyyy-MM-dd", // 2024-02-15 (current format)
+    "MM/dd/yyyy", // 02/15/2024 (US format)
+    "M/d/yyyy", // 2/5/2024 (US short)
+    "MMMM d, yyyy", // February 15, 2024
+    "MMM d, yyyy", // Feb 15, 2024
+    "MMMM d. yyyy", // January 20. 2026
+    "MMM d. yyyy", // Jan 20. 2026
+    "d MMMM yyyy", // 15 February 2024 (international)
+    "MM-dd-yyyy", // 02-15-2024 (dashes)
+    "M-d-yyyy", // 2-5-2024 (short dashes)
   ];
 
   // Try each format until one succeeds
@@ -50,12 +50,9 @@ export function parseFlexibleDate(dateString: string): string | null {
       // Check if the parsed date is valid
       if (isValid(parsed)) {
         // Return in YYYY-MM-DD format
-        return format(parsed, 'yyyy-MM-dd');
+        return format(parsed, "yyyy-MM-dd");
       }
-    } catch {
-      // Try next format
-      continue;
-    }
+    } catch {}
   }
 
   // No format matched

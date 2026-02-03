@@ -8,10 +8,7 @@ interface ReindexButtonProps {
   indexStatus: "pending" | "failed" | "indexed" | null;
 }
 
-export function ReindexButton({
-  contentId,
-  indexStatus,
-}: ReindexButtonProps) {
+export function ReindexButton({ contentId, indexStatus }: ReindexButtonProps) {
   const [isReindexing, setIsReindexing] = useState(false);
   const utils = api.useUtils();
 
@@ -52,9 +49,9 @@ export function ReindexButton({
 
   return (
     <button
-      onClick={handleReindex}
-      disabled={isReindexing}
       className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+      disabled={isReindexing}
+      onClick={handleReindex}
     >
       {isReindexing ? "Reindexing..." : "Re-index"}
     </button>

@@ -1,7 +1,7 @@
-export type ImportPhase = 'enriching' | 'validating' | 'inserting';
+export type ImportPhase = "enriching" | "validating" | "inserting";
 
 export interface ProgressEvent {
-  type: 'progress';
+  type: "progress";
   phase: ImportPhase;
   current: number;
   total: number;
@@ -11,7 +11,7 @@ export interface ProgressEvent {
 }
 
 export interface CompleteEvent {
-  type: 'complete';
+  type: "complete";
   successful: number;
   failed: number;
   errors: Array<{
@@ -29,7 +29,7 @@ export interface CompleteEvent {
 }
 
 export interface ErrorEvent {
-  type: 'error';
+  type: "error";
   message: string;
   code?: string;
 }

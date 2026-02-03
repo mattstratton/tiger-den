@@ -47,7 +47,10 @@ const CONTENT_TYPES = [
   { value: "other", label: "Other" },
 ] as const;
 
-export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps) {
+export function ContentFilters({
+  filters,
+  onFiltersChange,
+}: ContentFiltersProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
@@ -82,24 +85,24 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap gap-4">
           <Input
-            type="search"
-            placeholder="Search content..."
+            aria-label="Search content by title, description, or URL"
             className="max-w-sm"
-            value={filters.search}
             onChange={(e) =>
               onFiltersChange({ ...filters, search: e.target.value })
             }
-            aria-label="Search content by title, description, or URL"
+            placeholder="Search content..."
+            type="search"
+            value={filters.search}
           />
 
           <Select
-            value={filters.contentTypes[0] ?? "all"}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 contentTypes: value === "all" ? [] : [value],
               })
             }
+            value={filters.contentTypes[0] ?? "all"}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Content Type" />
@@ -115,13 +118,13 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
           </Select>
 
           <Select
-            value={filters.campaignIds[0] ?? "all"}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 campaignIds: value === "all" ? [] : [value],
               })
             }
+            value={filters.campaignIds[0] ?? "all"}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Campaign" />
@@ -138,46 +141,44 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
 
           {hasActiveFilters && (
             <Button
-              variant="ghost"
-              onClick={handleClearFilters}
               aria-label="Clear all filters"
+              onClick={handleClearFilters}
+              variant="ghost"
             >
-              <X className="h-4 w-4 mr-2" />
+              <X className="mr-2 h-4 w-4" />
               Clear
             </Button>
           )}
 
           <div className="ml-auto flex gap-2">
-            <Button onClick={() => setShowAddDialog(true)}>
-              Add Content
-            </Button>
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Button onClick={() => setShowAddDialog(true)}>Add Content</Button>
+            <Button onClick={() => setShowImportDialog(true)} variant="outline">
               Import CSV
             </Button>
             <Button variant="outline">Export CSV</Button>
             <Button
-              variant="destructive"
-              onClick={() => setShowDeleteAllDialog(true)}
               className="ml-2"
+              onClick={() => setShowDeleteAllDialog(true)}
+              variant="destructive"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="mr-2 h-4 w-4" />
               Delete All
             </Button>
           </div>
         </div>
       </div>
 
-      <ContentFormDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-      />
+      <ContentFormDialog onOpenChange={setShowAddDialog} open={showAddDialog} />
 
       <ImportCsvDialog
-        open={showImportDialog}
         onOpenChange={setShowImportDialog}
+        open={showImportDialog}
       />
 
-      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+      <AlertDialog
+        onOpenChange={setShowDeleteAllDialog}
+        open={showDeleteAllDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete All Content?</AlertDialogTitle>
@@ -192,8 +193,8 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteAllMutation.mutate()}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteAllMutation.mutate()}
             >
               Delete All Content
             </AlertDialogAction>

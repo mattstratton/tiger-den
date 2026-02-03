@@ -1,5 +1,5 @@
-import { encoding_for_model } from "tiktoken";
 import * as cheerio from "cheerio";
+import { encoding_for_model } from "tiktoken";
 import { YoutubeTranscript } from "youtube-transcript";
 import { indexingConfig } from "~/server/config/indexing-config";
 
@@ -127,11 +127,7 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
     const duration = Date.now() - startTime;
 
     if (error instanceof Error && error.name === "AbortError") {
-      throw new ContentFetchError(
-        `Timeout after ${duration}ms`,
-        url,
-        error,
-      );
+      throw new ContentFetchError(`Timeout after ${duration}ms`, url, error);
     }
 
     throw new ContentFetchError(

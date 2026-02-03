@@ -14,7 +14,7 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
 
   if (isLoading) {
     return (
-      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+      <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 text-xs">
         Loading...
       </span>
     );
@@ -22,7 +22,7 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
 
   if (!indexStatus) {
     return (
-      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+      <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 text-xs">
         Not indexed
       </span>
     );
@@ -32,7 +32,7 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
     case "indexed":
       return (
         <span
-          className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-700"
+          className="rounded-full bg-green-100 px-2 py-1 text-green-700 text-xs"
           title={`Indexed ${indexStatus.wordCount} words, ${indexStatus.tokenCount} tokens`}
         >
           ✓ Indexed
@@ -47,7 +47,7 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
     case "failed":
       return (
         <span
-          className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700"
+          className="rounded-full bg-red-100 px-2 py-1 text-red-700 text-xs"
           title={indexStatus.indexError ?? "Unknown error"}
         >
           ✗ Failed

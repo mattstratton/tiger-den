@@ -16,8 +16,8 @@ import {
 import { api } from "~/trpc/react";
 import { ContentTypeBadge } from "./content-badge";
 import { ContentFormDialog } from "./content-form-dialog";
-import { DeleteContentDialog } from "./delete-content-dialog";
 import { ContentIndexStatus } from "./content-index-status";
+import { DeleteContentDialog } from "./delete-content-dialog";
 import { ReindexButton } from "./reindex-button";
 
 interface ContentTableProps {
@@ -40,7 +40,7 @@ export function ContentTable({ filters }: ContentTableProps) {
   // Reset page to 0 when filters change
   useEffect(() => {
     setPage(0);
-  }, [filters.search, filters.contentTypes, filters.campaignIds]);
+  }, []);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -52,10 +52,19 @@ export function ContentTable({ filters }: ContentTableProps) {
 
   const { data, isLoading } = api.content.list.useQuery({
     search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
-    contentTypes: filters.contentTypes.length > 0
-      ? (filters.contentTypes as ("youtube_video" | "blog_post" | "case_study" | "website_content" | "third_party" | "other")[])
-      : undefined,
-    campaignIds: filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
+    contentTypes:
+      filters.contentTypes.length > 0
+        ? (filters.contentTypes as (
+            | "youtube_video"
+            | "blog_post"
+            | "case_study"
+            | "website_content"
+            | "third_party"
+            | "other"
+          )[])
+        : undefined,
+    campaignIds:
+      filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
     limit: pageSize,
     offset: page * pageSize,
   });
@@ -144,15 +153,19 @@ export function ContentTable({ filters }: ContentTableProps) {
                 <TableCell>{item.author || "-"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => setEditingId(item.id)}>
+                    <Button
+                      onClick={() => setEditingId(item.id)}
+                      size="icon"
+                      variant="ghost"
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      size="icon"
-                      variant="ghost"
                       onClick={() =>
                         setDeletingItem({ id: item.id, title: item.title })
                       }
+                      size="icon"
+                      variant="ghost"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -161,10 +174,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <ContentIndexStatus contentId={item.id} />
-                    <ReindexButton
-                      contentId={item.id}
-                      indexStatus={null}
-                    />
+                    <ReindexButton contentId={item.id} indexStatus={null} />
                   </div>
                 </TableCell>
               </TableRow>
@@ -198,17 +208,17 @@ export function ContentTable({ filters }: ContentTableProps) {
       </div>
 
       <ContentFormDialog
-        open={!!editingId}
-        onOpenChange={(open) => !open && setEditingId(undefined)}
         contentId={editingId}
+        onOpenChange={(open) => !open && setEditingId(undefined)}
+        open={!!editingId}
       />
 
       {deletingItem && (
         <DeleteContentDialog
-          open={!!deletingItem}
-          onOpenChange={(open) => !open && setDeletingItem(undefined)}
           contentId={deletingItem.id}
           contentTitle={deletingItem.title}
+          onOpenChange={(open) => !open && setDeletingItem(undefined)}
+          open={!!deletingItem}
         />
       )}
     </div>

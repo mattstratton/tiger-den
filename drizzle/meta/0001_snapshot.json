@@ -94,12 +94,8 @@
           "tableFrom": "account",
           "tableTo": "user",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -148,9 +144,7 @@
         "campaigns_name_unique": {
           "name": "campaigns_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -181,12 +175,8 @@
           "tableFrom": "content_campaigns",
           "tableTo": "content_items",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "content_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["content_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -195,12 +185,8 @@
           "tableFrom": "content_campaigns",
           "tableTo": "campaigns",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["campaign_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -208,10 +194,7 @@
       "compositePrimaryKeys": {
         "content_campaigns_content_item_id_campaign_id_pk": {
           "name": "content_campaigns_content_item_id_campaign_id_pk",
-          "columns": [
-            "content_item_id",
-            "campaign_id"
-          ]
+          "columns": ["content_item_id", "campaign_id"]
         }
       },
       "uniqueConstraints": {},
@@ -382,12 +365,8 @@
           "tableFrom": "content_items",
           "tableTo": "user",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -482,12 +461,8 @@
           "tableFrom": "post",
           "tableTo": "user",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -558,12 +533,8 @@
           "tableFrom": "session",
           "tableTo": "user",
           "schemaTo": "tiger_den",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -573,9 +544,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -636,9 +605,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -711,12 +678,7 @@
     "tiger_den.source": {
       "name": "source",
       "schema": "tiger_den",
-      "values": [
-        "manual",
-        "csv_import",
-        "cms_api",
-        "asana_webhook"
-      ]
+      "values": ["manual", "csv_import", "cms_api", "asana_webhook"]
     }
   },
   "schemas": {},

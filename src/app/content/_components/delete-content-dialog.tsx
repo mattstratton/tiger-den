@@ -1,6 +1,5 @@
 "use client";
 
-import { api } from "~/trpc/react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import { api } from "~/trpc/react";
 
 interface DeleteContentDialogProps {
   open: boolean;
@@ -33,7 +33,7 @@ export function DeleteContentDialog({
       onOpenChange(false);
     },
     onError: (error) => {
-      console.error('Failed to delete content:', error);
+      console.error("Failed to delete content:", error);
       // Dialog stays open so user can see the error and retry
     },
   });
@@ -43,7 +43,7 @@ export function DeleteContentDialog({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog onOpenChange={onOpenChange} open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -57,9 +57,9 @@ export function DeleteContentDialog({
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
-            onClick={handleDelete}
             disabled={deleteMutation.isPending}
+            onClick={handleDelete}
+            variant="destructive"
           >
             {deleteMutation.isPending ? "Deleting..." : "Delete"}
           </AlertDialogAction>

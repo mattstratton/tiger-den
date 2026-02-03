@@ -1,7 +1,6 @@
-import { db } from "~/server/db";
-import { contentChunks, contentText } from "~/server/db/schema";
-import { indexingConfig } from "~/server/config/indexing-config";
 import { sql } from "drizzle-orm";
+import { indexingConfig } from "~/server/config/indexing-config";
+import { db } from "~/server/db";
 
 export interface SearchResult {
   contentItemId: string;

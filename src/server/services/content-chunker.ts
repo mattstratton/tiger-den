@@ -74,7 +74,7 @@ export async function chunkContent(
         // Take last ~50 tokens from current chunk
         const sentences = splitIntoSentences(currentChunk);
         const overlapSentences = sentences.slice(-2); // Last 2 sentences ≈ 50 tokens
-        currentChunk = overlapSentences.join(". ") + ". " + paragraph;
+        currentChunk = `${overlapSentences.join(". ")}. ${paragraph}`;
         currentTokens = encoding.encode(currentChunk).length;
       } else {
         // Add paragraph to current chunk

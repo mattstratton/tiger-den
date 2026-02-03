@@ -1,6 +1,5 @@
 "use client";
 
-import { api } from "~/trpc/react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import { api } from "~/trpc/react";
 
 interface DeleteCampaignDialogProps {
   open: boolean;
@@ -35,17 +35,17 @@ export function DeleteCampaignDialog({
       onOpenChange(false);
     },
     onError: (error) => {
-      console.error('Failed to delete campaign:', error);
+      console.error("Failed to delete campaign:", error);
     },
   });
 
   const description =
     contentCount > 0
-      ? `This campaign is assigned to ${contentCount} content item${contentCount > 1 ? 's' : ''}. You must reassign or remove the content before deleting this campaign.`
+      ? `This campaign is assigned to ${contentCount} content item${contentCount > 1 ? "s" : ""}. You must reassign or remove the content before deleting this campaign.`
       : `Are you sure you want to delete "${campaignName}"? This action cannot be undone.`;
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog onOpenChange={onOpenChange} open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
@@ -54,9 +54,9 @@ export function DeleteCampaignDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => deleteMutation.mutate({ id: campaignId })}
-            disabled={contentCount > 0 || deleteMutation.isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={contentCount > 0 || deleteMutation.isPending}
+            onClick={() => deleteMutation.mutate({ id: campaignId })}
           >
             {deleteMutation.isPending ? "Deleting..." : "Delete"}
           </AlertDialogAction>

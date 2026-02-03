@@ -1,10 +1,10 @@
-import { db } from "~/server/db";
-import { contentText, contentChunks } from "~/server/db/schema";
-import { indexingConfig } from "~/server/config/indexing-config";
-import { fetchContent, ContentFetchError } from "./content-fetcher";
-import { chunkContent } from "./content-chunker";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
-import crypto from "crypto";
+import { indexingConfig } from "~/server/config/indexing-config";
+import { db } from "~/server/db";
+import { contentChunks, contentText } from "~/server/db/schema";
+import { chunkContent } from "./content-chunker";
+import { ContentFetchError, fetchContent } from "./content-fetcher";
 
 export interface IndexingResult {
   success: boolean;

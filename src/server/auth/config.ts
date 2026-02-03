@@ -1,10 +1,10 @@
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
-import { users, accounts, sessions } from "~/server/db/schema";
+import { accounts, sessions, users } from "~/server/db/schema";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: env.AUTH_SECRET,

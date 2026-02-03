@@ -1,8 +1,12 @@
-import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { contentItems, contentCampaigns, contentText } from "~/server/db/schema";
-import { eq, ilike, and, or, gte, lte, inArray, sql } from "drizzle-orm";
+import {
+  contentCampaigns,
+  contentItems,
+  contentText,
+} from "~/server/db/schema";
 import { indexContent } from "~/server/services/indexing-orchestrator";
 
 export const contentRouter = createTRPCRouter({
@@ -10,20 +14,24 @@ export const contentRouter = createTRPCRouter({
     .input(
       z.object({
         search: z.string().optional(),
-        contentTypes: z.array(z.enum([
-          "youtube_video",
-          "blog_post",
-          "case_study",
-          "website_content",
-          "third_party",
-          "other",
-        ])).optional(),
+        contentTypes: z
+          .array(
+            z.enum([
+              "youtube_video",
+              "blog_post",
+              "case_study",
+              "website_content",
+              "third_party",
+              "other",
+            ]),
+          )
+          .optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
         publishDateFrom: z.string().optional(),
         publishDateTo: z.string().optional(),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const conditions = [];
@@ -34,8 +42,8 @@ export const contentRouter = createTRPCRouter({
           or(
             ilike(contentItems.title, `%${input.search}%`),
             ilike(contentItems.description, `%${input.search}%`),
-            ilike(contentItems.currentUrl, `%${input.search}%`)
-          )
+            ilike(contentItems.currentUrl, `%${input.search}%`),
+          ),
         );
       }
 
@@ -60,12 +68,13 @@ export const contentRouter = createTRPCRouter({
             ctx.db
               .selectDistinct({ id: contentCampaigns.contentItemId })
               .from(contentCampaigns)
-              .where(inArray(contentCampaigns.campaignId, input.campaignIds))
-          )
+              .where(inArray(contentCampaigns.campaignId, input.campaignIds)),
+          ),
         );
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       const items = await ctx.db.query.contentItems.findMany({
         where: whereClause,
@@ -115,7 +124,7 @@ export const contentRouter = createTRPCRouter({
         targetAudience: z.string().optional(),
         tags: z.array(z.string()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { campaignIds, ...contentData } = input;
@@ -150,7 +159,7 @@ export const contentRouter = createTRPCRouter({
             campaignIds.map((campaignId) => ({
               contentItemId: item.id,
               campaignId,
-            }))
+            })),
           );
         }
 
@@ -174,21 +183,23 @@ export const contentRouter = createTRPCRouter({
         id: z.string().uuid(),
         title: z.string().min(1).optional(),
         currentUrl: z.string().url().optional(),
-        contentType: z.enum([
-          "youtube_video",
-          "blog_post",
-          "case_study",
-          "website_content",
-          "third_party",
-          "other",
-        ]).optional(),
+        contentType: z
+          .enum([
+            "youtube_video",
+            "blog_post",
+            "case_study",
+            "website_content",
+            "third_party",
+            "other",
+          ])
+          .optional(),
         publishDate: z.string().optional(),
         description: z.string().optional(),
         author: z.string().optional(),
         targetAudience: z.string().optional(),
         tags: z.array(z.string()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, campaignIds, currentUrl, ...updates } = input;
@@ -238,7 +249,7 @@ export const contentRouter = createTRPCRouter({
               campaignIds.map((campaignId) => ({
                 contentItemId: id,
                 campaignId,
-              }))
+              })),
             );
           }
         }
@@ -261,9 +272,7 @@ export const contentRouter = createTRPCRouter({
         throw new Error("Content item not found");
       }
 
-      await ctx.db
-        .delete(contentItems)
-        .where(eq(contentItems.id, input.id));
+      await ctx.db.delete(contentItems).where(eq(contentItems.id, input.id));
 
       return { success: true };
     }),
