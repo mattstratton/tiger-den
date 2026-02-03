@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { contentItems, contentCampaigns } from "~/server/db/schema";
+import { contentItems, contentCampaigns, contentText } from "~/server/db/schema";
 import { eq, ilike, and, or, gte, lte, inArray, sql } from "drizzle-orm";
 import { indexContent } from "~/server/services/indexing-orchestrator";
 
@@ -288,6 +288,24 @@ export const contentRouter = createTRPCRouter({
       }
 
       return { success: true };
+    }),
+
+  getIndexStatus: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const indexStatus = await ctx.db.query.contentText.findFirst({
+        where: eq(contentText.contentItemId, input.id),
+        columns: {
+          indexStatus: true,
+          indexError: true,
+          indexedAt: true,
+          crawledAt: true,
+          wordCount: true,
+          tokenCount: true,
+        },
+      });
+
+      return indexStatus ?? null;
     }),
 
   getById: protectedProcedure
