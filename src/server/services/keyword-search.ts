@@ -25,6 +25,8 @@ export async function keywordSearch(
   query: string,
   limit: number = 10,
 ): Promise<KeywordSearchResult[]> {
+  console.log(`[keywordSearch] Searching for: "${query}", limit: ${limit}`);
+
   // Query: Full-text keyword search using PostgreSQL native search
   const results = await db.execute(sql`
     SELECT
@@ -38,6 +40,8 @@ export async function keywordSearch(
     ORDER BY score DESC
     LIMIT ${limit}
   `);
+
+  console.log(`[keywordSearch] Found ${(results as unknown as QueryRow[]).length} results`);
 
   // Convert to result format with normalized relevance scores
   // BM25 scores are already normalized by pg_textsearch
