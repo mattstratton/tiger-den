@@ -60,3 +60,51 @@ function rrfFusion(
       };
     });
 }
+
+/**
+ * Hybrid search: BM25 keyword + vector semantic with RRF fusion
+ * Runs queries in parallel, fuses results client-side
+ */
+export async function hybridSearch(
+  query: string,
+  embedding: number[],
+  limit: number = 10,
+): Promise<SearchResult[]> {
+  const candidateLimit = indexingConfig.candidatesPerSearch;
+
+  // Run both queries in parallel
+  const [keywordResults, semanticResults] = await Promise.all([
+    // Query 1: BM25 keyword search
+    db.execute(sql`
+      SELECT
+        ct.content_item_id,
+        cc.id as chunk_id,
+        cc.chunk_text
+      FROM tiger_den.content_chunks cc
+      JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
+      ORDER BY cc.chunk_text <@> ${query}
+      LIMIT ${candidateLimit}
+    `),
+
+    // Query 2: Vector semantic search
+    db.execute(sql`
+      SELECT
+        ct.content_item_id,
+        cc.id as chunk_id,
+        cc.chunk_text
+      FROM tiger_den.content_chunks cc
+      JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
+      WHERE cc.embedding IS NOT NULL
+      ORDER BY cc.embedding <=> ${sql.raw(`'[${embedding.join(",")}]'::halfvec(1536)`)}
+      LIMIT ${candidateLimit}
+    `),
+  ]);
+
+  // Fuse with RRF
+  return rrfFusion(
+    keywordResults as unknown as QueryRow[],
+    semanticResults as unknown as QueryRow[],
+    indexingConfig.rrfK,
+    limit,
+  );
+}
