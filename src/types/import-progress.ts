@@ -24,6 +24,8 @@ export interface CompleteEvent {
     successful: number;
     failed: number;
   };
+  indexed: number;
+  indexingFailed: number;
 }
 
 export interface ErrorEvent {

@@ -95,6 +95,8 @@ export async function GET(request: NextRequest) {
             failed: result.failed,
             errors: result.errors,
             enrichment: result.enrichment,
+            indexed: result.indexed,
+            indexingFailed: result.indexingFailed,
           });
         } catch (error) {
           // Send error event

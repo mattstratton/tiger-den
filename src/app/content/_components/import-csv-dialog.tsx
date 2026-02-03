@@ -34,6 +34,8 @@ interface ImportResult {
     successful: number;
     failed: number;
   };
+  indexed: number;
+  indexingFailed: number;
 }
 
 export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
@@ -79,6 +81,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               successful: 0,
               failed: 0,
               errors: [{ row: 0, message: "CSV file is empty" }],
+              indexed: 0,
+              indexingFailed: 0,
             });
             setImporting(false);
             return;
@@ -96,6 +100,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                     "CSV exceeds 1000 row limit. Please split into smaller files.",
                 },
               ],
+              indexed: 0,
+              indexingFailed: 0,
             });
             setImporting(false);
             return;
@@ -142,6 +148,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                     failed: data.failed,
                     errors: data.errors,
                     enrichment: data.enrichment,
+                    indexed: data.indexed,
+                    indexingFailed: data.indexingFailed,
                   });
                   setImporting(false);
                   setProgress(null);
@@ -153,6 +161,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                     successful: 0,
                     failed: 1,
                     errors: [{ row: 0, message: data.message }],
+                    indexed: 0,
+                    indexingFailed: 0,
                   });
                   setImporting(false);
                   setProgress(null);
@@ -171,6 +181,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 successful: 0,
                 failed: 1,
                 errors: [{ row: 0, message: "Import stream connection failed" }],
+                indexed: 0,
+                indexingFailed: 0,
               });
               setImporting(false);
               setProgress(null);
@@ -189,6 +201,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                     error instanceof Error ? error.message : "Import failed",
                 },
               ],
+              indexed: 0,
+              indexingFailed: 0,
             });
             setImporting(false);
             setProgress(null);
@@ -199,6 +213,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             successful: 0,
             failed: 1,
             errors: [{ row: 0, message: `Failed to parse CSV: ${error.message}` }],
+            indexed: 0,
+            indexingFailed: 0,
           });
           setImporting(false);
         },
@@ -229,6 +245,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 "File size exceeds 5MB limit. Please split into smaller files.",
             },
           ],
+          indexed: 0,
+          indexingFailed: 0,
         });
       } else {
         setResult({
@@ -240,6 +258,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               message: rejection?.errors[0]?.message ?? "File rejected",
             },
           ],
+          indexed: 0,
+          indexingFailed: 0,
         });
       }
     },
@@ -490,6 +510,17 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   <AlertDescription>
                     Fetched {result.enrichment.successful} of {result.enrichment.attempted} titles from URLs.
                     {result.enrichment.failed > 0 && ` (${result.enrichment.failed} failed)`}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Indexing Results */}
+              {result.successful > 0 && (
+                <Alert>
+                  <AlertTitle>Content Indexing</AlertTitle>
+                  <AlertDescription>
+                    Indexed {result.indexed} of {result.successful} items for search.
+                    {result.indexingFailed > 0 && ` (${result.indexingFailed} failed - will retry automatically)`}
                   </AlertDescription>
                 </Alert>
               )}
