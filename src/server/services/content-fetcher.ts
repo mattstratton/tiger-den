@@ -201,3 +201,17 @@ export async function fetchYouTubeTranscript(
     );
   }
 }
+
+/**
+ * Fetch content from URL (auto-detect type)
+ * Dispatches to web or YouTube fetcher based on URL
+ */
+export async function fetchContent(url: string): Promise<FetchResult> {
+  // Check if YouTube URL
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return fetchYouTubeTranscript(url);
+  }
+
+  // Default to web content
+  return fetchWebContent(url);
+}
