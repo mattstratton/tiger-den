@@ -2,6 +2,7 @@ import { z, ZodError } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { contentItems, contentCampaigns, campaigns } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import { fetchPageTitle } from "~/server/services/title-fetcher";
 
 // CSV row schema with snake_case column names
 const csvRowSchema = z.object({
@@ -45,6 +46,24 @@ export const csvRouter = createTRPCRouter({
       let failed = 0;
       const errors: ImportError[] = [];
       const processedUrls = new Set<string>();
+
+      // Enrich blank titles by fetching from URLs
+      const enrichmentStats = { attempted: 0, successful: 0, failed: 0 };
+
+      for (const row of input.rows) {
+        // Only attempt enrichment if title is blank
+        if (!row.title || (typeof row.title === 'string' && row.title.trim() === "")) {
+          enrichmentStats.attempted++;
+          const fetchedTitle = await fetchPageTitle(row.current_url as string);
+
+          if (fetchedTitle) {
+            row.title = fetchedTitle;
+            enrichmentStats.successful++;
+          } else {
+            enrichmentStats.failed++;
+          }
+        }
+      }
 
       // Process each row
       for (let i = 0; i < input.rows.length; i++) {
@@ -169,6 +188,7 @@ export const csvRouter = createTRPCRouter({
         successful,
         failed,
         errors,
+        enrichment: enrichmentStats,
       };
     }),
 });
