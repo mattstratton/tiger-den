@@ -33,6 +33,12 @@ export const sourceEnum = tigerDenSchema.enum("source", [
   "asana_webhook",
 ]);
 
+export const indexStatusEnum = tigerDenSchema.enum("index_status", [
+  "pending",
+  "indexed",
+  "failed",
+]);
+
 export const posts = tigerDenSchema.table(
   "post",
   {
@@ -146,6 +152,34 @@ export const contentItems = tigerDenSchema.table("content_items", {
   createdAtIdx: index("content_items_created_at_idx").on(table.createdAt),
 }));
 
+// Content text storage for full-text search
+export const contentText = tigerDenSchema.table("content_text", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  contentItemId: uuid("content_item_id")
+    .notNull()
+    .references(() => contentItems.id, { onDelete: "cascade" })
+    .unique(),
+
+  // Crawled content
+  fullText: text("full_text").notNull(),
+  plainText: text("plain_text").notNull(),
+
+  // Metadata
+  wordCount: integer("word_count").notNull(),
+  tokenCount: integer("token_count").notNull(),
+  contentHash: text("content_hash").notNull(),
+  crawledAt: timestamp("crawled_at").notNull().defaultNow(),
+  crawlDurationMs: integer("crawl_duration_ms"),
+
+  // Status tracking
+  indexStatus: indexStatusEnum("index_status").notNull().default("pending"),
+  indexError: text("index_error"),
+  indexedAt: timestamp("indexed_at"),
+}, (table) => ({
+  contentItemIdx: index("content_text_item_idx").on(table.contentItemId),
+  statusIdx: index("content_text_status_idx").on(table.indexStatus),
+}));
+
 // Campaigns table
 export const campaigns = tigerDenSchema.table("campaigns", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -192,4 +226,12 @@ export const contentCampaignsRelations = relations(contentCampaigns, ({ one }) =
     fields: [contentCampaigns.campaignId],
     references: [campaigns.id],
   }),
+}));
+
+export const contentTextRelations = relations(contentText, ({ one, many }) => ({
+  contentItem: one(contentItems, {
+    fields: [contentText.contentItemId],
+    references: [contentItems.id],
+  }),
+  chunks: many(contentChunks),
 }));
