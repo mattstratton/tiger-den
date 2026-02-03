@@ -68,6 +68,14 @@ This directory contains 4 test CSV files for manual testing of the title enrichm
 - Tests batched progress updates
 - Expected duration: ~1-2 minutes
 
+## Flexible Date Format Testing
+
+### flexible-dates.csv (12 rows)
+- Tests all 10 supported date formats
+- Includes edge cases: empty date, invalid date
+- Expected: 11 successful imports, 1 validation error (invalid date)
+- Verifies date normalization to YYYY-MM-DD format
+
 ## Cleanup
 
 After testing, you may want to delete the test content items from the UI.

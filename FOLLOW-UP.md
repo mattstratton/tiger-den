@@ -2,23 +2,6 @@
 
 ## CSV Import Improvements
 
-### 1. Flexible Date Format Parsing
-**Priority:** Medium
-**Description:** Accept and convert standard date formats during CSV import
-**Current Behavior:** Only accepts YYYY-MM-DD format
-**Desired Behavior:** Accept common date formats and automatically convert them:
-- MM/DD/YYYY
-- DD/MM/YYYY
-- Month DD, YYYY
-- ISO 8601 formats
-- Timestamps
-
-**Implementation Notes:**
-- Use date parsing library (date-fns parse, dayjs, etc.)
-- Provide clear error messages for ambiguous dates
-- Consider adding date format selection in import dialog
-- Document accepted formats in template
-
 ## Other Features
 
 ### CSV importer validator
@@ -65,6 +48,25 @@ Actually - should we be ingesting all of the actual text content etc of the cont
 - Displays enrichment summary in results
 - Gracefully handles failures (leaves title blank)
 
+### Flexible Date Format Parsing
+**Completed:** 2026-02-03
+**Description:** Accept multiple date formats during CSV import and auto-convert to YYYY-MM-DD
+**Implementation:**
+- Supports 10 common date formats (US, written, international)
+- Automatic format detection and conversion
+- date-fns library for parsing
+- Backward compatible with existing YYYY-MM-DD format
+- Clear validation errors for unparseable dates
+
+**Supported Formats:**
+- YYYY-MM-DD (2024-02-15)
+- MM/DD/YYYY (02/15/2024)
+- M/D/YYYY (2/5/2024)
+- Written formats: February 15, 2024 / Feb 15, 2024
+- Period formats: January 20. 2026 / Jan 20. 2026
+- International: 15 February 2024
+- Dash formats: 02-15-2024 / 2-5-2024
+
 ---
 
-*Last Updated: 2026-02-02*
+*Last Updated: 2026-02-03*
