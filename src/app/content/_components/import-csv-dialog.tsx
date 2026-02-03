@@ -323,6 +323,17 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 </div>
               )}
 
+              {/* Enrichment Results */}
+              {result.enrichment && result.enrichment.attempted > 0 && (
+                <Alert>
+                  <AlertTitle>Title Enrichment</AlertTitle>
+                  <AlertDescription>
+                    Fetched {result.enrichment.successful} of {result.enrichment.attempted} titles from URLs.
+                    {result.enrichment.failed > 0 && ` (${result.enrichment.failed} failed)`}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Actions */}
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={handleClose}>
