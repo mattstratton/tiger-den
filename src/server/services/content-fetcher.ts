@@ -1,3 +1,5 @@
+import { encoding_for_model } from "tiktoken";
+
 export interface FetchResult {
   plainText: string;
   fullText: string;
@@ -38,10 +40,19 @@ export function extractYouTubeVideoId(url: string): string | null {
 
 /**
  * Count tokens using tiktoken (OpenAI compatible)
+ * Uses cl100k_base encoding (same as text-embedding-3-small)
  */
 async function countTokens(text: string): Promise<number> {
-  // TODO: Implement in next task
-  return 0;
+  try {
+    const encoding = encoding_for_model("text-embedding-3-small");
+    const tokens = encoding.encode(text);
+    encoding.free(); // Free memory
+    return tokens.length;
+  } catch (error) {
+    console.error("Token counting failed:", error);
+    // Fallback: rough estimate (1 token ≈ 4 characters)
+    return Math.ceil(text.length / 4);
+  }
 }
 
 /**
