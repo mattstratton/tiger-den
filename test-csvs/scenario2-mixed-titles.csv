@@ -1,0 +1,5 @@
+title,current_url,content_type,publish_date,description,author,target_audience,tags,campaigns
+Pre-filled Title 1,https://news.ycombinator.com,blog_post,2026-01-15,Description for HN,Test Author,Developers,tech,Test Campaign
+,https://stackoverflow.com,website_content,2026-01-16,Description for SO,Test Author,Developers,programming,Test Campaign
+Pre-filled Title 2,https://developer.mozilla.org,blog_post,2026-01-17,Description for MDN,Test Author,Web Developers,web,Test Campaign
+,https://www.postgresql.org,website_content,2026-01-18,Description for Postgres,Test Author,Database Admins,database,Test Campaign

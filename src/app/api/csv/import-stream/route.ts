@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
               // Transform processor progress event to SSE format
               sendEvent({
                 type: 'progress',
-                phase: progressEvent.phase === 'enriching' ? 'enriching' : 'inserting',
+                phase: progressEvent.phase,
                 current: progressEvent.current,
                 total: progressEvent.total,
                 percentage: Math.round((progressEvent.current / progressEvent.total) * 100),

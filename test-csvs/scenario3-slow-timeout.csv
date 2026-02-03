@@ -1,0 +1,4 @@
+title,current_url,content_type,publish_date,description,author,target_audience,tags,campaigns
+,https://httpstat.us/200?sleep=15000,blog_post,2026-01-15,This URL sleeps for 15 seconds,Test Author,Developers,testing,Test Campaign
+,https://example.invalid,website_content,2026-01-16,This URL does not exist,Test Author,Developers,testing,Test Campaign
+,https://www.cloudflare.com,blog_post,2026-01-17,This should succeed,Test Author,Developers,cdn,Test Campaign

@@ -1,0 +1,4 @@
+title,current_url,content_type,publish_date,description,author,target_audience,tags,campaigns
+,https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf,blog_post,2026-01-15,PDF file,Test Author,Developers,pdf,Test Campaign
+,https://www.timescale.com,website_content,2026-01-16,This should succeed,Test Author,Developers,database,Test Campaign
+Pre-filled Title,https://raw.githubusercontent.com/timescale/timescaledb/main/README.md,other,2026-01-17,Raw markdown file,Test Author,Developers,github,Test Campaign

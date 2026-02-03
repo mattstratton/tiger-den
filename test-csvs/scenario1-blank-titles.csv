@@ -1,0 +1,4 @@
+title,current_url,content_type,publish_date,description,author,target_audience,tags,campaigns
+,https://en.wikipedia.org/wiki/PostgreSQL,blog_post,2026-01-15,Description for PostgreSQL article,Test Author,Developers,database,Test Campaign
+,https://github.com/timescale/timescaledb,website_content,2026-01-16,Description for TimescaleDB,Test Author,DevOps,database,Test Campaign
+,https://www.anthropic.com,website_content,2026-01-17,Description for Anthropic,Test Author,AI Developers,ai,Test Campaign

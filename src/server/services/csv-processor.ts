@@ -50,7 +50,7 @@ export interface ProcessResult {
 }
 
 export interface ProgressEvent {
-  phase: "enriching" | "processing";
+  phase: "enriching" | "validating";
   current: number;
   total: number;
   message: string;
@@ -223,7 +223,7 @@ export async function processImportWithProgress(
       // Send progress every 10 rows
       if (sendEvent && (i + 1) % 10 === 0) {
         sendEvent({
-          phase: "processing",
+          phase: "validating",
           current: i + 1,
           total: rows.length,
           message: `Processed ${i + 1} of ${rows.length} rows`,
@@ -259,7 +259,7 @@ export async function processImportWithProgress(
   // Final processing progress
   if (sendEvent) {
     sendEvent({
-      phase: "processing",
+      phase: "validating",
       current: rows.length,
       total: rows.length,
       message: `Processing complete: ${successful} successful, ${failed} failed`,
