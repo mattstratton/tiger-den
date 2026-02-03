@@ -23,6 +23,11 @@ Centralized database for all marketing content inventory. Supports manual entry,
 
 All tables use the `tiger_den` schema via `pgSchema()`.
 
+### Extensions Enabled
+- `vector` - pgvector for embeddings storage
+- `pg_textsearch` - BM25 keyword search
+- `pgai` - Automated embedding generation
+
 ## Commands
 
 ```bash
