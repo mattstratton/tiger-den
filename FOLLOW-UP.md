@@ -2,18 +2,7 @@
 
 ## CSV Import Improvements
 
-### 1. Progress Indicator During Import
-**Priority:** Medium
-**Description:** Add a progress indicator to show upload/processing status during CSV import
-**Current Behavior:** No visual feedback during import processing
-**Desired Behavior:** Show progress bar or spinner with status (e.g., "Processing row 45 of 100...")
-
-**Implementation Notes:**
-- Consider using streaming/chunked processing for large files
-- Update UI with real-time progress
-- Show estimated time remaining for large imports
-
-### 2. Flexible Date Format Parsing
+### 1. Flexible Date Format Parsing
 **Priority:** Medium
 **Description:** Accept and convert standard date formats during CSV import
 **Current Behavior:** Only accepts YYYY-MM-DD format
@@ -44,6 +33,16 @@
 ---
 
 ## Completed Features
+
+### Progress Indicator During Import
+**Completed:** 2026-02-02
+**Description:** Real-time progress updates during CSV import using SSE
+**Implementation:**
+- Server-Sent Events for streaming progress
+- Progress bar with percentage and phase indicators
+- Batched updates every 10 rows
+- Error count tracking
+- Keep-alive pings for long imports
 
 ### Metadata Enrichment
 **Completed:** 2026-02-02
