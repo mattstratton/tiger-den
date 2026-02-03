@@ -21,6 +21,12 @@
 
 ## Other Features
 
+### Other metadata enrichment
+
+It would be helpful to add some fields that might include topics or technlogies - which we could then search on. Should also include a brief abstract/summary of the content piece.
+
+These can possibly be handled in import, but really would be very nice if there was a way to add some AI parsing/enrichment. Could happen as a background job so that it's not holding up import, etc. 
+
 ---
 
 ## Deferred Features

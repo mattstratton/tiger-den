@@ -10,30 +10,41 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[import-stream] Starting SSE connection...');
+
     // Verify authentication
     const session = await auth();
     if (!session?.user?.id) {
+      console.log('[import-stream] Unauthorized - no user session');
       return new Response('Unauthorized', { status: 401 });
     }
 
     const userId = session.user.id;
+    console.log(`[import-stream] User authenticated: ${userId}`);
 
     // Get session ID from query params
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('session');
 
     if (!sessionId) {
+      console.log('[import-stream] Missing session ID in query params');
       return new Response('Missing session ID', { status: 400 });
     }
+
+    console.log(`[import-stream] Looking up session: ${sessionId}`);
 
     // Get import session
     const importSession = getSession(sessionId);
     if (!importSession) {
+      console.log(`[import-stream] Session not found: ${sessionId}`);
       return new Response('Session not found or expired', { status: 404 });
     }
 
+    console.log(`[import-stream] Session found with ${importSession.rows.length} rows`);
+
     // Verify session ownership
     if (importSession.userId !== userId) {
+      console.log(`[import-stream] Session ownership mismatch: ${importSession.userId} !== ${userId}`);
       return new Response('Forbidden', { status: 403 });
     }
 

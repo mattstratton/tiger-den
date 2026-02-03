@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Create session
     createSession(sessionId, session.user.id, rows);
+    console.log(`[start-import] Created session ${sessionId} for user ${session.user.id} with ${rows.length} rows`);
 
     return NextResponse.json({ success: true, sessionId });
   } catch (error) {
