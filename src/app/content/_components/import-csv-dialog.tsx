@@ -13,7 +13,6 @@ import {
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
-import { api } from "~/trpc/react";
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -56,38 +55,20 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     };
   }, [eventSource]);
 
-  const utils = api.useUtils();
-  const importMutation = api.csv.import.useMutation({
-    onSuccess: async (data) => {
-      setResult(data);
-      setImporting(false);
-      // Refetch content list if any imports were successful
-      if (data.successful > 0) {
-        await utils.content.list.invalidate();
-      }
-    },
-    onError: (error) => {
-      setResult({
-        successful: 0,
-        failed: 1,
-        errors: [{ row: 0, message: error.message }],
-      });
-      setImporting(false);
-    },
-  });
 
-  const onDrop = useCallback(
+  const handleDrop = useCallback(
     (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
       if (!file) return;
 
       setImporting(true);
       setResult(null);
+      setProgress(null);
 
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        complete: (results) => {
+        complete: async (results) => {
           // Parse the CSV data
           const rows = results.data as Array<Record<string, unknown>>;
 
@@ -118,8 +99,82 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             return;
           }
 
-          // Call the import mutation
-          importMutation.mutate({ rows });
+          // Generate session ID and start SSE-based import
+          const sessionId = crypto.randomUUID();
+
+          try {
+            // Send CSV rows to start-import endpoint
+            const response = await fetch("/api/csv/start-import", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId, rows }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to start import");
+            }
+
+            // Open EventSource connection to receive progress updates
+            const es = new EventSource(
+              `/api/csv/import-stream?session=${sessionId}`
+            );
+            setEventSource(es);
+
+            es.addEventListener("progress", (event) => {
+              const data = JSON.parse(event.data) as {
+                phase: 'enriching' | 'validating' | 'inserting';
+                current: number;
+                total: number;
+                percentage: number;
+                errorCount: number;
+                message: string;
+              };
+              setProgress(data);
+            });
+
+            es.addEventListener("complete", (event) => {
+              const data = JSON.parse(event.data) as ImportResult;
+              setResult(data);
+              setImporting(false);
+              setProgress(null);
+              es.close();
+              setEventSource(null);
+            });
+
+            es.addEventListener("error", (event) => {
+              console.error("EventSource error:", event);
+              setResult({
+                successful: 0,
+                failed: 1,
+                errors: [{ row: 0, message: "Import stream connection failed" }],
+              });
+              setImporting(false);
+              setProgress(null);
+              es.close();
+              setEventSource(null);
+            });
+
+            es.onerror = () => {
+              console.error("EventSource connection error");
+              es.close();
+              setEventSource(null);
+            };
+          } catch (error) {
+            console.error("Import error:", error);
+            setResult({
+              successful: 0,
+              failed: 1,
+              errors: [
+                {
+                  row: 0,
+                  message:
+                    error instanceof Error ? error.message : "Import failed",
+                },
+              ],
+            });
+            setImporting(false);
+            setProgress(null);
+          }
         },
         error: (error) => {
           setResult({
@@ -131,11 +186,11 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         },
       });
     },
-    [importMutation]
+    []
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+    onDrop: handleDrop,
     accept: {
       "text/csv": [".csv"],
       "application/vnd.ms-excel": [".csv"],
@@ -222,7 +277,15 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
   };
 
   const handleClose = () => {
+    // Clean up EventSource if it exists
+    if (eventSource) {
+      eventSource.close();
+      setEventSource(null);
+    }
+    // Reset all state
     setResult(null);
+    setProgress(null);
+    setImporting(false);
     onOpenChange(false);
   };
 
