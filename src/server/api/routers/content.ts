@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { contentItems, contentCampaigns } from "~/server/db/schema";
 import { eq, ilike, and, or, gte, lte, inArray, sql } from "drizzle-orm";
+import { indexContent } from "~/server/services/indexing-orchestrator";
 
 export const contentRouter = createTRPCRouter({
   list: protectedProcedure
@@ -254,6 +256,36 @@ export const contentRouter = createTRPCRouter({
       await ctx.db
         .delete(contentItems)
         .where(eq(contentItems.id, input.id));
+
+      return { success: true };
+    }),
+
+  reindexContent: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      // Get content item
+      const item = await ctx.db.query.contentItems.findFirst({
+        where: eq(contentItems.id, input.id),
+      });
+
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Content item not found",
+        });
+      }
+
+      // Run indexing
+      const result = await indexContent([
+        { id: item.id, url: item.currentUrl },
+      ]);
+
+      if (result.failed > 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: result.results[0]?.error ?? "Indexing failed",
+        });
+      }
 
       return { success: true };
     }),
