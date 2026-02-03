@@ -17,6 +17,8 @@ import { api } from "~/trpc/react";
 import { ContentTypeBadge } from "./content-badge";
 import { ContentFormDialog } from "./content-form-dialog";
 import { DeleteContentDialog } from "./delete-content-dialog";
+import { ContentIndexStatus } from "./content-index-status";
+import { ReindexButton } from "./reindex-button";
 
 interface ContentTableProps {
   filters: {
@@ -74,13 +76,14 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
               <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Index Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow>
               <TableCell
                 className="text-center text-muted-foreground"
-                colSpan={6}
+                colSpan={7}
               >
                 No content items yet. Add your first content item to get
                 started.
@@ -104,6 +107,7 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
               <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Index Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -152,6 +156,15 @@ export function ContentTable({ filters }: ContentTableProps) {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <ContentIndexStatus contentId={item.id} />
+                    <ReindexButton
+                      contentId={item.id}
+                      indexStatus={null}
+                    />
                   </div>
                 </TableCell>
               </TableRow>

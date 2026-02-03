@@ -15,6 +15,15 @@ export function ReindexButton({
   const [isReindexing, setIsReindexing] = useState(false);
   const utils = api.useUtils();
 
+  // Fetch index status if not provided
+  const { data: fetchedStatus } = api.content.getIndexStatus.useQuery(
+    { id: contentId },
+    {
+      enabled: indexStatus === null,
+      refetchInterval: false,
+    },
+  );
+
   const reindexMutation = api.content.reindexContent.useMutation({
     onSuccess: async () => {
       // Refetch index status
@@ -28,8 +37,11 @@ export function ReindexButton({
     },
   });
 
+  // Determine effective status
+  const effectiveStatus = indexStatus ?? fetchedStatus?.indexStatus ?? null;
+
   // Only show button for failed or pending items
-  if (indexStatus !== "failed" && indexStatus !== "pending") {
+  if (effectiveStatus !== "failed" && effectiveStatus !== "pending") {
     return null;
   }
 
