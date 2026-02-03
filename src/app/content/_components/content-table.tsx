@@ -23,6 +23,7 @@ import { ReindexButton } from "./reindex-button";
 interface ContentTableProps {
   filters: {
     search: string;
+    searchMode: "metadata" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   };
@@ -50,30 +51,77 @@ export function ContentTable({ filters }: ContentTableProps) {
     return () => clearTimeout(timer);
   }, [filters.search]);
 
-  const { data, isLoading } = api.content.list.useQuery({
-    search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
-    contentTypes:
-      filters.contentTypes.length > 0
-        ? (filters.contentTypes as (
-            | "youtube_video"
-            | "blog_post"
-            | "case_study"
-            | "website_content"
-            | "third_party"
-            | "other"
-          )[])
-        : undefined,
-    campaignIds:
-      filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
-    limit: pageSize,
-    offset: page * pageSize,
-  });
+  // Use hybrid search when in fullContent mode with a search query
+  const useHybridSearch =
+    filters.searchMode === "fullContent" && debouncedSearch.length > 0;
+
+  const { data: listData, isLoading: listLoading } = api.content.list.useQuery(
+    {
+      search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
+      contentTypes:
+        filters.contentTypes.length > 0
+          ? (filters.contentTypes as (
+              | "youtube_video"
+              | "blog_post"
+              | "case_study"
+              | "website_content"
+              | "third_party"
+              | "other"
+            )[])
+          : undefined,
+      campaignIds:
+        filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
+      limit: pageSize,
+      offset: page * pageSize,
+    },
+    {
+      enabled: !useHybridSearch,
+    },
+  );
+
+  const {
+    data: searchData,
+    isLoading: searchLoading,
+  } = api.content.hybridSearch.useQuery(
+    {
+      query: debouncedSearch,
+      limit: pageSize,
+    },
+    {
+      enabled: useHybridSearch,
+    },
+  );
+
+  const isLoading = useHybridSearch ? searchLoading : listLoading;
 
   if (isLoading) {
     return <div className="py-8 text-center">Loading...</div>;
   }
 
-  if (!data || data.items.length === 0) {
+  // Normalize data structure for both modes
+  type ItemWithSearch = NonNullable<typeof listData>["items"][number] & {
+    relevanceScore?: number;
+    matchedText?: string;
+  };
+
+  const items: ItemWithSearch[] = useHybridSearch
+    ? (searchData
+        ?.map((result) =>
+          result.contentItem
+            ? {
+                ...result.contentItem,
+                relevanceScore: result.relevanceScore,
+                matchedText: result.chunkText,
+              }
+            : null,
+        )
+        .filter((item): item is NonNullable<typeof item> => item !== null) ??
+      [])
+    : (listData?.items ?? []);
+
+  const hasItems = items.length > 0;
+
+  if (!hasItems) {
     return (
       <div className="rounded-md border">
         <Table>
@@ -84,6 +132,7 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Publish Date</TableHead>
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
+              {useHybridSearch && <TableHead>Relevance</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
               <TableHead>Index Status</TableHead>
             </TableRow>
@@ -92,10 +141,11 @@ export function ContentTable({ filters }: ContentTableProps) {
             <TableRow>
               <TableCell
                 className="text-center text-muted-foreground"
-                colSpan={7}
+                colSpan={useHybridSearch ? 8 : 7}
               >
-                No content items yet. Add your first content item to get
-                started.
+                {useHybridSearch
+                  ? "No matching content found. Try a different search query."
+                  : "No content items yet. Add your first content item to get started."}
               </TableCell>
             </TableRow>
           </TableBody>
@@ -115,23 +165,31 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableHead>Publish Date</TableHead>
               <TableHead>Campaigns</TableHead>
               <TableHead>Author</TableHead>
+              {useHybridSearch && <TableHead>Relevance</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
               <TableHead>Index Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.items.map((item) => (
+            {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
-                  <a
-                    className="flex items-center gap-2 hover:underline"
-                    href={item.currentUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {item.title}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex flex-col gap-1">
+                    <a
+                      className="flex items-center gap-2 hover:underline"
+                      href={item.currentUrl}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {item.title}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {useHybridSearch && item.matchedText && (
+                      <div className="max-w-md text-muted-foreground text-sm">
+                        ...{item.matchedText.substring(0, 150)}...
+                      </div>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <ContentTypeBadge type={item.contentType} />
@@ -151,6 +209,15 @@ export function ContentTable({ filters }: ContentTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>{item.author || "-"}</TableCell>
+                {useHybridSearch && (
+                  <TableCell>
+                    <div className="text-sm">
+                      {item.relevanceScore
+                        ? `${(item.relevanceScore * 100).toFixed(1)}%`
+                        : "-"}
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
@@ -184,28 +251,36 @@ export function ContentTable({ filters }: ContentTableProps) {
       </div>
 
       {/* Pagination */}
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-muted-foreground text-sm">
-          Showing {page * pageSize + 1} to{" "}
-          {Math.min((page + 1) * pageSize, data.total)} of {data.total} items
+      {!useHybridSearch && listData && (
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-muted-foreground text-sm">
+            Showing {page * pageSize + 1} to{" "}
+            {Math.min((page + 1) * pageSize, listData.total)} of{" "}
+            {listData.total} items
+          </div>
+          <div className="flex gap-2">
+            <Button
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              variant="outline"
+            >
+              Previous
+            </Button>
+            <Button
+              disabled={!listData.hasMore}
+              onClick={() => setPage((p) => p + 1)}
+              variant="outline"
+            >
+              Next
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            variant="outline"
-          >
-            Previous
-          </Button>
-          <Button
-            disabled={!data.hasMore}
-            onClick={() => setPage((p) => p + 1)}
-            variant="outline"
-          >
-            Next
-          </Button>
+      )}
+      {useHybridSearch && (
+        <div className="mt-4 text-muted-foreground text-sm">
+          Showing top {items.length} most relevant results
         </div>
-      </div>
+      )}
 
       <ContentFormDialog
         contentId={editingId}

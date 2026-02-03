@@ -28,11 +28,13 @@ import { ImportCsvDialog } from "./import-csv-dialog";
 interface ContentFiltersProps {
   filters: {
     search: string;
+    searchMode: "metadata" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   };
   onFiltersChange: (filters: {
     search: string;
+    searchMode: "metadata" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   }) => void;
@@ -75,6 +77,7 @@ export function ContentFilters({
   const handleClearFilters = () => {
     onFiltersChange({
       search: "",
+      searchMode: "metadata",
       contentTypes: [],
       campaignIds: [],
     });
@@ -84,16 +87,52 @@ export function ContentFilters({
     <>
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap gap-4">
-          <Input
-            aria-label="Search content by title, description, or URL"
-            className="max-w-sm"
-            onChange={(e) =>
-              onFiltersChange({ ...filters, search: e.target.value })
-            }
-            placeholder="Search content..."
-            type="search"
-            value={filters.search}
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              aria-label="Search content by title, description, or URL"
+              className="max-w-sm"
+              onChange={(e) =>
+                onFiltersChange({ ...filters, search: e.target.value })
+              }
+              placeholder={
+                filters.searchMode === "fullContent"
+                  ? "Search full content..."
+                  : "Search titles & metadata..."
+              }
+              type="search"
+              value={filters.search}
+            />
+            {filters.search && (
+              <div className="flex gap-2">
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "metadata"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "metadata" })
+                  }
+                  type="button"
+                >
+                  Titles/Metadata
+                </button>
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "fullContent"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "fullContent" })
+                  }
+                  type="button"
+                >
+                  Full Content
+                </button>
+              </div>
+            )}
+          </div>
 
           <Select
             onValueChange={(value) =>
