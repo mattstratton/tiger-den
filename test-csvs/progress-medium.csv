@@ -1,0 +1,51 @@
+title,current_url,content_type,publish_date,description,author,target_audience,campaigns,tags
+,https://en.wikipedia.org/wiki/PostgreSQL,blog_post,2024-01-15,PostgreSQL database overview,John Doe,developers,Q1 2024 Launch,database;postgresql
+Advanced TimescaleDB Features,https://www.timescale.com/blog,blog_post,2024-01-16,Time-series database features,Jane Smith,developers,Q1 2024 Launch,timescaledb;database
+,https://github.com/timescale/timescaledb,case_study,2024-01-17,TimescaleDB GitHub repository,Engineering Team,developers,Developer Resources,github;opensource
+Building Scalable APIs,https://www.anthropic.com/,blog_post,2024-01-18,API development best practices,Alex Johnson,architects,Q1 2024 Launch,api;architecture
+,https://en.wikipedia.org/wiki/Time_series,video,2024-01-19,Time series data explained,Sarah Lee,analysts,Educational Content,timeseries;data
+Modern Web Development,https://nextjs.org/docs,blog_post,2024-01-20,Next.js framework guide,Mike Chen,developers,Developer Resources,nextjs;react
+,https://www.postgresql.org/docs/,website_content,2024-01-21,PostgreSQL documentation,Postgres Team,developers,Developer Resources,postgresql;docs
+Cloud Native Databases,https://aws.amazon.com/rds/postgresql/,case_study,2024-01-22,AWS RDS PostgreSQL features,AWS Team,architects,Cloud Migration,aws;cloud
+,https://en.wikipedia.org/wiki/Database,blog_post,2024-01-23,Database fundamentals,Emily Brown,students,Educational Content,database;basics
+TypeScript Best Practices,https://www.typescriptlang.org/docs/,blog_post,2024-01-24,TypeScript patterns and practices,Tom Wilson,developers,Q1 2024 Launch,typescript;programming
+,https://react.dev/,video,2024-01-25,React framework overview,React Team,developers,Developer Resources,react;frontend
+Data Modeling for Analytics,https://www.timescale.com/learn,blog_post,2024-01-26,Analytics data modeling guide,Analytics Team,analysts,Educational Content,analytics;modeling
+,https://en.wikipedia.org/wiki/SQL,website_content,2024-01-27,SQL language reference,DB Authors,developers,Developer Resources,sql;database
+Container Orchestration,https://kubernetes.io/docs/,case_study,2024-01-28,Kubernetes deployment patterns,DevOps Team,architects,Cloud Migration,kubernetes;devops
+,https://www.docker.com/,blog_post,2024-01-29,Docker containerization guide,Container Team,developers,Developer Resources,docker;containers
+Machine Learning Pipelines,https://www.tensorflow.org/,blog_post,2024-01-30,TensorFlow ML pipelines,ML Team,data_scientists,AI Initiative,ml;tensorflow
+,https://en.wikipedia.org/wiki/API,video,2024-01-31,API design principles,API Team,developers,Educational Content,api;design
+Microservices Architecture,https://martinfowler.com/,blog_post,2024-02-01,Microservices patterns,Martin Fowler,architects,Q1 2024 Launch,microservices;architecture
+,https://www.mongodb.com/,case_study,2024-02-02,MongoDB use cases,MongoDB Team,developers,Database Comparison,mongodb;nosql
+GraphQL Introduction,https://graphql.org/learn/,blog_post,2024-02-03,GraphQL query language,GraphQL Team,developers,Developer Resources,graphql;api
+,https://en.wikipedia.org/wiki/REST,website_content,2024-02-04,RESTful API design,API Authors,developers,Educational Content,rest;api
+Serverless Computing,https://aws.amazon.com/lambda/,case_study,2024-02-05,AWS Lambda serverless patterns,AWS Team,architects,Cloud Migration,serverless;aws
+,https://vercel.com/docs,blog_post,2024-02-06,Vercel deployment guide,Vercel Team,developers,Developer Resources,vercel;deployment
+Data Visualization,https://d3js.org/,video,2024-02-07,D3.js visualization techniques,Viz Team,analysts,Educational Content,visualization;d3
+,https://en.wikipedia.org/wiki/NoSQL,blog_post,2024-02-08,NoSQL database overview,DB Team,developers,Database Comparison,nosql;database
+CI/CD Best Practices,https://github.com/features/actions,blog_post,2024-02-09,GitHub Actions workflows,DevOps Team,developers,Developer Resources,cicd;github
+,https://www.jenkins.io/,case_study,2024-02-10,Jenkins automation patterns,Jenkins Team,architects,DevOps Toolkit,jenkins;automation
+Security Fundamentals,https://owasp.org/,website_content,2024-02-11,OWASP security guidelines,Security Team,developers,Security Initiative,security;owasp
+,https://en.wikipedia.org/wiki/Encryption,blog_post,2024-02-12,Encryption basics,Crypto Team,developers,Educational Content,encryption;security
+Performance Optimization,https://web.dev/performance/,blog_post,2024-02-13,Web performance patterns,Web Team,developers,Q1 2024 Launch,performance;optimization
+,https://www.nginx.com/,video,2024-02-14,NGINX load balancing,NGINX Team,architects,Cloud Migration,nginx;loadbalancing
+Monitoring and Observability,https://prometheus.io/,case_study,2024-02-15,Prometheus monitoring setup,Monitoring Team,architects,DevOps Toolkit,monitoring;prometheus
+,https://grafana.com/,blog_post,2024-02-16,Grafana dashboard design,Grafana Team,analysts,DevOps Toolkit,grafana;visualization
+Event-Driven Architecture,https://kafka.apache.org/,blog_post,2024-02-17,Apache Kafka patterns,Kafka Team,architects,Q1 2024 Launch,kafka;messaging
+,https://en.wikipedia.org/wiki/Message_queue,website_content,2024-02-18,Message queue fundamentals,Queue Authors,developers,Educational Content,messaging;queues
+Testing Strategies,https://jestjs.io/docs/,blog_post,2024-02-19,Jest testing framework,Testing Team,developers,Developer Resources,testing;jest
+,https://www.cypress.io/,video,2024-02-20,Cypress E2E testing,Cypress Team,developers,Developer Resources,testing;e2e
+Infrastructure as Code,https://www.terraform.io/,case_study,2024-02-21,Terraform IaC patterns,IaC Team,architects,Cloud Migration,terraform;iac
+,https://www.ansible.com/,blog_post,2024-02-22,Ansible automation guide,Ansible Team,architects,DevOps Toolkit,ansible;automation
+Cloud Cost Optimization,https://aws.amazon.com/pricing/,blog_post,2024-02-23,AWS cost optimization strategies,FinOps Team,architects,Cloud Migration,aws;costs
+,https://en.wikipedia.org/wiki/Cloud_computing,website_content,2024-02-24,Cloud computing fundamentals,Cloud Authors,developers,Educational Content,cloud;basics
+Distributed Systems,https://martin.kleppmann.com/,blog_post,2024-02-25,Distributed systems patterns,Martin Kleppmann,architects,Q1 2024 Launch,distributed;systems
+,https://www.consul.io/,case_study,2024-02-26,Consul service mesh,HashiCorp Team,architects,Cloud Migration,consul;servicemesh
+API Gateway Patterns,https://www.nginx.com/solutions/api-gateway/,blog_post,2024-02-27,API gateway architecture,Gateway Team,architects,Q1 2024 Launch,api;gateway
+,https://kong.io/,video,2024-02-28,Kong API management,Kong Team,developers,Developer Resources,api;kong
+Database Replication,https://www.postgresql.org/docs/current/high-availability.html,blog_post,2024-03-01,PostgreSQL HA and replication,DB Team,architects,Cloud Migration,postgresql;ha
+,https://en.wikipedia.org/wiki/Replication_(computing),website_content,2024-03-02,Data replication concepts,Replication Authors,developers,Educational Content,replication;data
+Caching Strategies,https://redis.io/,case_study,2024-03-03,Redis caching patterns,Redis Team,developers,Q1 2024 Launch,redis;caching
+,https://memcached.org/,blog_post,2024-03-04,Memcached performance tips,Cache Team,developers,Developer Resources,memcached;performance
+Real-time Data Processing,https://flink.apache.org/,blog_post,2024-03-05,Apache Flink streaming,Flink Team,data_scientists,AI Initiative,flink;streaming
