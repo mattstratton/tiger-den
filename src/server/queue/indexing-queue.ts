@@ -1,7 +1,12 @@
 import PgBoss from "pg-boss";
 import { env } from "~/env";
 
-let boss: PgBoss | null = null;
+// Use global to persist across hot reloads in development
+const globalForBoss = globalThis as unknown as {
+  boss: PgBoss | undefined;
+};
+
+let boss = globalForBoss.boss;
 
 /**
  * Get or create the pg-boss queue instance
@@ -9,7 +14,8 @@ let boss: PgBoss | null = null;
  */
 export async function getQueue(): Promise<PgBoss> {
   if (!boss) {
-    boss = new PgBoss({
+    console.log("[Queue] Creating new pg-boss instance...");
+    const newBoss = new PgBoss({
       connectionString: env.DATABASE_URL,
       schema: "pgboss",
       retryLimit: 3,
@@ -18,8 +24,19 @@ export async function getQueue(): Promise<PgBoss> {
       archiveCompletedAfterSeconds: 86400, // keep completed jobs for 24hrs
     });
 
-    await boss.start();
+    // Assign immediately to prevent race conditions
+    boss = newBoss;
+    globalForBoss.boss = newBoss;
+
+    await newBoss.start();
     console.log("[Queue] pg-boss started successfully");
+
+    // Log boss state for debugging
+    newBoss.on("error", (error) => {
+      console.error("[Queue] pg-boss error:", error);
+    });
+  } else {
+    console.log("[Queue] Reusing existing pg-boss instance");
   }
 
   return boss;

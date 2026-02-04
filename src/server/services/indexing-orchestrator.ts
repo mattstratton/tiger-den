@@ -51,7 +51,7 @@ export async function indexSingleItem(
 
     const contentHash = calculateHash(fetchResult.plainText);
 
-    // Step 2: Store full content
+    // Step 2: Store or update full content (upsert for pending items)
     const [contentTextRecord] = await db
       .insert(contentText)
       .values({
@@ -64,10 +64,22 @@ export async function indexSingleItem(
         crawlDurationMs: fetchResult.duration,
         indexStatus: "pending",
       })
+      .onConflictDoUpdate({
+        target: contentText.contentItemId,
+        set: {
+          fullText: fetchResult.fullText,
+          plainText: fetchResult.plainText,
+          wordCount: fetchResult.wordCount,
+          tokenCount: fetchResult.tokenCount,
+          contentHash,
+          crawlDurationMs: fetchResult.duration,
+          indexStatus: "pending",
+        },
+      })
       .returning();
 
     if (!contentTextRecord) {
-      throw new Error("Failed to insert content_text record");
+      throw new Error("Failed to upsert content_text record");
     }
 
     // Step 3: Chunk content

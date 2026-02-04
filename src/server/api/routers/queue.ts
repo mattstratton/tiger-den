@@ -65,6 +65,18 @@ export const queueRouter = createTRPCRouter({
   enqueuePending: protectedProcedure.mutation(async () => {
     const queue = await getQueue();
 
+    // Ensure queue exists
+    try {
+      await queue.createQueue("index-content", {
+        retryLimit: 3,
+        retryDelay: 5,
+        retryBackoff: true,
+      });
+      console.log(`[enqueuePending] Queue created or already exists`);
+    } catch (error) {
+      console.log(`[enqueuePending] Queue creation error (might already exist):`, error);
+    }
+
     // Find all content items with pending status
     const pendingItems = await db.query.contentText.findMany({
       where: eq(contentText.indexStatus, "pending"),
@@ -73,6 +85,8 @@ export const queueRouter = createTRPCRouter({
       },
     });
 
+    console.log(`[enqueuePending] Found ${pendingItems.length} pending items`);
+
     // Enqueue each item
     let enqueued = 0;
     const errors: string[] = [];
@@ -80,25 +94,55 @@ export const queueRouter = createTRPCRouter({
     for (const item of pendingItems) {
       if (!item.contentItem?.currentUrl) {
         errors.push(`Item ${item.contentItemId} has no URL`);
+        console.log(
+          `[enqueuePending] Item ${item.contentItemId} has no URL`,
+        );
         continue;
       }
 
       try {
-        await queue.send(
-          "index-content",
-          {
-            contentItemId: item.contentItemId,
-            url: item.contentItem.currentUrl,
-          },
-          { singletonKey: item.contentItemId },
-        );
-        enqueued++;
+        if (enqueued === 0) {
+          console.log(`[enqueuePending] About to send first job:`, {
+            name: "index-content",
+            data: {
+              contentItemId: item.contentItemId,
+              url: item.contentItem.currentUrl,
+            },
+          });
+        }
+
+        const jobId = await queue.send("index-content", {
+          contentItemId: item.contentItemId,
+          url: item.contentItem.currentUrl,
+        });
+
+        if (enqueued === 0) {
+          console.log(`[enqueuePending] First job result:`, jobId);
+        }
+
+        if (jobId) {
+          enqueued++;
+        } else {
+          errors.push(`Job ${item.contentItemId} returned null`);
+        }
+
+        if (enqueued % 100 === 0) {
+          console.log(`[enqueuePending] Enqueued ${enqueued} items...`);
+        }
       } catch (error) {
+        console.error(
+          `[enqueuePending] Failed to enqueue ${item.contentItemId}:`,
+          error,
+        );
         errors.push(
           `Failed to enqueue ${item.contentItemId}: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
     }
+
+    console.log(
+      `[enqueuePending] Complete: ${enqueued} enqueued, ${errors.length} errors`,
+    );
 
     return {
       success: true,

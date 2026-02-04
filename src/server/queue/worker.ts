@@ -1,6 +1,6 @@
-import { getQueue } from "./indexing-queue";
-import { indexSingleItem } from "../services/indexing-orchestrator";
-import type { IndexJobPayload } from "./indexing-queue";
+import { getQueue } from "~/server/queue/indexing-queue";
+import { indexSingleItem } from "~/server/services/indexing-orchestrator";
+import type { IndexJobPayload } from "~/server/queue/indexing-queue";
 
 /**
  * Start the queue worker to process index-content jobs
