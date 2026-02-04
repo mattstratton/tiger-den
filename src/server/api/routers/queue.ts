@@ -87,58 +87,35 @@ export const queueRouter = createTRPCRouter({
 
     console.log(`[enqueuePending] Found ${pendingItems.length} pending items`);
 
-    // Enqueue each item
-    let enqueued = 0;
-    const errors: string[] = [];
-
-    for (const item of pendingItems) {
-      if (!item.contentItem?.currentUrl) {
-        errors.push(`Item ${item.contentItemId} has no URL`);
-        console.log(
-          `[enqueuePending] Item ${item.contentItemId} has no URL`,
-        );
-        continue;
-      }
-
-      try {
-        if (enqueued === 0) {
-          console.log(`[enqueuePending] About to send first job:`, {
-            name: "index-content",
-            data: {
-              contentItemId: item.contentItemId,
-              url: item.contentItem.currentUrl,
-            },
-          });
-        }
-
-        const jobId = await queue.send("index-content", {
+    // Prepare jobs for batch insert
+    const jobs = pendingItems
+      .filter((item) => item.contentItem?.currentUrl)
+      .map((item) => ({
+        name: "index-content" as const,
+        data: {
           contentItemId: item.contentItemId,
-          url: item.contentItem.currentUrl,
-        });
+          url: item.contentItem!.currentUrl,
+        },
+      }));
 
-        if (enqueued === 0) {
-          console.log(`[enqueuePending] First job result:`, jobId);
-        }
-
-        if (jobId) {
-          enqueued++;
-        } else {
-          errors.push(`Job ${item.contentItemId} returned null`);
-        }
-
-        if (enqueued % 100 === 0) {
-          console.log(`[enqueuePending] Enqueued ${enqueued} items...`);
-        }
-      } catch (error) {
-        console.error(
-          `[enqueuePending] Failed to enqueue ${item.contentItemId}:`,
-          error,
-        );
-        errors.push(
-          `Failed to enqueue ${item.contentItemId}: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
+    const skipped = pendingItems.length - jobs.length;
+    if (skipped > 0) {
+      console.log(`[enqueuePending] Skipped ${skipped} items with no URL`);
     }
+
+    console.log(`[enqueuePending] Batch inserting ${jobs.length} jobs...`);
+
+    // Use batch insert for much faster enqueueing
+    try {
+      await queue.insert(jobs);
+      console.log(`[enqueuePending] Batch insert complete`);
+    } catch (error) {
+      console.error(`[enqueuePending] Batch insert failed:`, error);
+      throw error;
+    }
+
+    const enqueued = jobs.length;
+    const errors: string[] = [];
 
     console.log(
       `[enqueuePending] Complete: ${enqueued} enqueued, ${errors.length} errors`,
