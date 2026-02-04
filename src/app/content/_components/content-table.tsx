@@ -108,7 +108,7 @@ export function ContentTable({ filters }: ContentTableProps) {
     },
   );
 
-  const isLoading = useAdvancedSearch
+  const isLoading = useHybridSearch
     ? hybridSearchLoading
     : useKeywordSearch
       ? keywordSearchLoading
@@ -124,7 +124,7 @@ export function ContentTable({ filters }: ContentTableProps) {
     matchedText?: string;
   };
 
-  const searchData = useAdvancedSearch
+  const searchData = useHybridSearch
     ? hybridSearchData
     : useKeywordSearch
       ? keywordSearchData
