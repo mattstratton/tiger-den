@@ -16,6 +16,7 @@ export interface IndexingStats {
   total: number;
   succeeded: number;
   failed: number;
+  queued: number;
   results: IndexingResult[];
 }
 
