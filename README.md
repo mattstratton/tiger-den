@@ -11,7 +11,11 @@ Tiger Den helps marketing teams track and manage their published content across 
 - **Content Management** - Create, edit, and delete content items with comprehensive metadata
 - **Campaign Tracking** - Organize content by campaigns with many-to-many relationships
 - **CSV Import/Export** - Bulk import content from CSV files with validation and auto-campaign creation
-- **Search & Filters** - Global search across titles, descriptions, and URLs with type and campaign filters
+- **Hybrid Search** - Three search modes:
+  - *Titles/Metadata* - Basic search on title, description, URL
+  - *Keywords (Free)* - BM25 full-text search with PostgreSQL native search
+  - *Full Content (AI)* - Semantic vector search + BM25 with RRF fusion (requires OpenAI API key)
+- **Content Indexing** - Automatic indexing of web pages and YouTube transcripts for searchable full-text content
 - **URL History** - Automatically tracks URL changes to maintain historical references
 - **Google OAuth** - Secure authentication with optional domain restriction
 - **Tiger Data Branding** - Implements official Tiger Data brand guidelines
@@ -28,12 +32,19 @@ Tiger Den helps marketing teams track and manage their published content across 
 - **API:** [tRPC](https://trpc.io)
 - **Authentication:** [NextAuth.js v5](https://authjs.dev)
 - **State Management:** [TanStack Query (React Query) v5](https://tanstack.com/query)
+- **Search:** pg_textsearch (BM25), pgvector (embeddings), OpenAI embeddings API (optional)
 
 ## Prerequisites
 
 - Node.js 18+ and npm
 - PostgreSQL database (recommended: [Tiger Cloud](https://www.tigerdata.com))
-- Google OAuth credentials (optional, for authentication)
+- Google OAuth credentials (for authentication)
+- **yt-dlp** (for YouTube transcript extraction)
+  - macOS: `brew install yt-dlp`
+  - Python: `pip install yt-dlp`
+  - See [yt-dlp installation](https://github.com/yt-dlp/yt-dlp#installation)
+- **OpenAI API key** (optional, for Full Content AI search)
+  - Get yours at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
 ## Getting Started
 
@@ -68,16 +79,40 @@ DATABASE_URL="postgresql://user:password@host:port/database?sslmode=require"
 AUTH_SECRET="your-secret-here"  # Generate with: openssl rand -base64 32
 AUTH_URL="http://localhost:3000"  # Or your production URL
 
-# Google OAuth
+# Google OAuth (Required)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 GOOGLE_HOSTED_DOMAIN="yourcompany.com"  # Optional: restrict to your domain
+
+# Content Indexing Configuration (Optional)
+INDEXING_SYNC_THRESHOLD=10       # Max items to index synchronously (default: 10)
+INDEXING_TIMEOUT_MS=5000         # Content fetch timeout in ms (default: 5000)
+ENABLE_CONTENT_INDEXING=true     # Enable/disable indexing (default: true)
+
+# OpenAI API (Optional - only for Full Content AI search)
+OPENAI_API_KEY="sk-..."          # Get from: https://platform.openai.com/api-keys
+                                 # If not provided, Keywords (Free) search still works
 ```
 
 **Generate Auth Secret:**
 ```bash
 openssl rand -base64 32
 ```
+
+### Environment Variable Details
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
+| `AUTH_SECRET` | Yes* | - | Secret for session encryption (*optional in dev) |
+| `AUTH_URL` | No | `http://localhost:3000` | Base URL for auth callbacks |
+| `GOOGLE_CLIENT_ID` | Yes | - | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Yes | - | Google OAuth client secret |
+| `GOOGLE_HOSTED_DOMAIN` | No | - | Restrict sign-ins to specific domain |
+| `INDEXING_SYNC_THRESHOLD` | No | `10` | Max items for synchronous indexing |
+| `INDEXING_TIMEOUT_MS` | No | `5000` | Timeout for content fetching (ms) |
+| `ENABLE_CONTENT_INDEXING` | No | `true` | Enable content indexing feature |
+| `OPENAI_API_KEY` | No | - | OpenAI API key for AI search (~$0.0001/search) |
 
 ### 4. Set Up Database
 
@@ -154,13 +189,24 @@ tiger-den/
 
 ## Database Schema
 
-The application uses three main tables in the `tiger_den` schema:
+The application uses tables in the `tiger_den` schema:
 
+**Core Tables:**
 - **content_items** - Published content with metadata (title, URL, description, type, etc.)
 - **campaigns** - Marketing campaigns
 - **content_campaigns** - Junction table for many-to-many relationships
 
-Plus NextAuth.js tables for user authentication (users, sessions, accounts, verification_tokens).
+**Content Indexing Tables:**
+- **content_text** - Full-text content extracted from URLs
+- **content_chunks** - Chunked content with embeddings for hybrid search
+
+**Authentication Tables:**
+- NextAuth.js tables (users, sessions, accounts, verification_tokens)
+
+**Database Extensions:**
+- `vector` - pgvector for embeddings storage (halfvec)
+- `pg_textsearch` - BM25 keyword search
+- `pgai` - Automated embedding generation
 
 ## CSV Import Format
 
