@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
-import { api } from "~/trpc/react";
-import { Button } from "~/components/ui/button";
+import { useState } from "react";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -14,13 +13,14 @@ import {
   CommandList,
   CommandSeparator,
 } from "~/components/ui/command";
+import { Input } from "~/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover";
-import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
+import { api } from "~/trpc/react";
 
 interface CampaignMultiSelectProps {
   value: string[];
@@ -51,7 +51,7 @@ export function CampaignMultiSelect({
   });
 
   const selectedCampaigns = campaigns.filter((campaign) =>
-    value.includes(campaign.id)
+    value.includes(campaign.id),
   );
 
   const handleToggleCampaign = (campaignId: string) => {
@@ -75,13 +75,13 @@ export function CampaignMultiSelect({
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover onOpenChange={setOpen} open={open}>
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
-            role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
+            role="combobox"
+            variant="outline"
           >
             {value.length === 0
               ? "Select campaigns..."
@@ -89,20 +89,20 @@ export function CampaignMultiSelect({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
+        <PopoverContent align="start" className="w-full p-0">
           <Command>
             <CommandInput placeholder="Search campaigns..." />
             <CommandList>
               <CommandEmpty>
                 <div className="p-2">
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="mb-2 text-muted-foreground text-sm">
                     No campaigns found.
                   </p>
                   <Button
-                    size="sm"
-                    variant="outline"
                     className="w-full"
                     onClick={() => setShowCreateForm(true)}
+                    size="sm"
+                    variant="outline"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Create new campaign
@@ -113,15 +113,15 @@ export function CampaignMultiSelect({
                 {campaigns.map((campaign) => (
                   <CommandItem
                     key={campaign.id}
-                    value={campaign.name}
                     onSelect={() => handleToggleCampaign(campaign.id)}
+                    value={campaign.name}
                   >
                     <div
                       className={cn(
                         "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                         value.includes(campaign.id)
                           ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
+                          : "opacity-50 [&_svg]:invisible",
                       )}
                     >
                       <Check className="h-4 w-4" />
@@ -135,8 +135,8 @@ export function CampaignMultiSelect({
                   <CommandSeparator />
                   <CommandGroup>
                     <CommandItem
-                      onSelect={() => setShowCreateForm(true)}
                       className="justify-center text-center"
+                      onSelect={() => setShowCreateForm(true)}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Create new campaign
@@ -149,34 +149,34 @@ export function CampaignMultiSelect({
 
           {showCreateForm && (
             <div className="border-t p-3">
-              <form onSubmit={handleCreateCampaign} className="space-y-2">
+              <form className="space-y-2" onSubmit={handleCreateCampaign}>
                 <Input
+                  autoFocus
+                  onChange={(e) => setNewCampaignName(e.target.value)}
                   placeholder="Campaign name"
                   value={newCampaignName}
-                  onChange={(e) => setNewCampaignName(e.target.value)}
-                  autoFocus
                 />
                 <div className="flex gap-2">
                   <Button
-                    type="submit"
-                    size="sm"
                     className="flex-1"
                     disabled={
                       !newCampaignName.trim() ||
                       createCampaignMutation.isPending
                     }
+                    size="sm"
+                    type="submit"
                   >
                     Create
                   </Button>
                   <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
                     className="flex-1"
                     onClick={() => {
                       setShowCreateForm(false);
                       setNewCampaignName("");
                     }}
+                    size="sm"
+                    type="button"
+                    variant="outline"
                   >
                     Cancel
                   </Button>
@@ -191,10 +191,10 @@ export function CampaignMultiSelect({
         <div className="flex flex-wrap gap-2">
           {selectedCampaigns.map((campaign) => (
             <Badge
-              key={campaign.id}
-              variant="secondary"
               className="cursor-pointer hover:bg-secondary/80"
+              key={campaign.id}
               onClick={() => handleRemoveCampaign(campaign.id)}
+              variant="secondary"
             >
               {campaign.name}
               <X className="ml-1 h-3 w-3" />

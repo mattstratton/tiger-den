@@ -28,11 +28,13 @@ import { ImportCsvDialog } from "./import-csv-dialog";
 interface ContentFiltersProps {
   filters: {
     search: string;
+    searchMode: "metadata" | "keyword" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   };
   onFiltersChange: (filters: {
     search: string;
+    searchMode: "metadata" | "keyword" | "fullContent";
     contentTypes: string[];
     campaignIds: string[];
   }) => void;
@@ -47,7 +49,10 @@ const CONTENT_TYPES = [
   { value: "other", label: "Other" },
 ] as const;
 
-export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps) {
+export function ContentFilters({
+  filters,
+  onFiltersChange,
+}: ContentFiltersProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
@@ -72,6 +77,7 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
   const handleClearFilters = () => {
     onFiltersChange({
       search: "",
+      searchMode: "metadata",
       contentTypes: [],
       campaignIds: [],
     });
@@ -81,25 +87,78 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
     <>
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap gap-4">
-          <Input
-            type="search"
-            placeholder="Search content..."
-            className="max-w-sm"
-            value={filters.search}
-            onChange={(e) =>
-              onFiltersChange({ ...filters, search: e.target.value })
-            }
-            aria-label="Search content by title, description, or URL"
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              aria-label="Search content by title, description, or URL"
+              className="max-w-sm"
+              onChange={(e) =>
+                onFiltersChange({ ...filters, search: e.target.value })
+              }
+              placeholder={
+                filters.searchMode === "fullContent"
+                  ? "Search full content (AI)..."
+                  : filters.searchMode === "keyword"
+                    ? "Search keywords (BM25)..."
+                    : "Search titles & metadata..."
+              }
+              type="search"
+              value={filters.search}
+            />
+            {filters.search && (
+              <div className="flex gap-2">
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "metadata"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "metadata" })
+                  }
+                  type="button"
+                >
+                  Titles/Metadata
+                </button>
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "keyword"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "keyword" })
+                  }
+                  title="BM25 keyword search - no AI cost"
+                  type="button"
+                >
+                  Keywords (Free)
+                </button>
+                <button
+                  className={`rounded px-2 py-1 text-xs ${
+                    filters.searchMode === "fullContent"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  onClick={() =>
+                    onFiltersChange({ ...filters, searchMode: "fullContent" })
+                  }
+                  title="Hybrid search with AI embeddings - uses OpenAI"
+                  type="button"
+                >
+                  Full Content (AI)
+                </button>
+              </div>
+            )}
+          </div>
 
           <Select
-            value={filters.contentTypes[0] ?? "all"}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 contentTypes: value === "all" ? [] : [value],
               })
             }
+            value={filters.contentTypes[0] ?? "all"}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Content Type" />
@@ -115,13 +174,13 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
           </Select>
 
           <Select
-            value={filters.campaignIds[0] ?? "all"}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 campaignIds: value === "all" ? [] : [value],
               })
             }
+            value={filters.campaignIds[0] ?? "all"}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Campaign" />
@@ -138,46 +197,44 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
 
           {hasActiveFilters && (
             <Button
-              variant="ghost"
-              onClick={handleClearFilters}
               aria-label="Clear all filters"
+              onClick={handleClearFilters}
+              variant="ghost"
             >
-              <X className="h-4 w-4 mr-2" />
+              <X className="mr-2 h-4 w-4" />
               Clear
             </Button>
           )}
 
           <div className="ml-auto flex gap-2">
-            <Button onClick={() => setShowAddDialog(true)}>
-              Add Content
-            </Button>
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Button onClick={() => setShowAddDialog(true)}>Add Content</Button>
+            <Button onClick={() => setShowImportDialog(true)} variant="outline">
               Import CSV
             </Button>
             <Button variant="outline">Export CSV</Button>
             <Button
-              variant="destructive"
-              onClick={() => setShowDeleteAllDialog(true)}
               className="ml-2"
+              onClick={() => setShowDeleteAllDialog(true)}
+              variant="destructive"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="mr-2 h-4 w-4" />
               Delete All
             </Button>
           </div>
         </div>
       </div>
 
-      <ContentFormDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-      />
+      <ContentFormDialog onOpenChange={setShowAddDialog} open={showAddDialog} />
 
       <ImportCsvDialog
-        open={showImportDialog}
         onOpenChange={setShowImportDialog}
+        open={showImportDialog}
       />
 
-      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+      <AlertDialog
+        onOpenChange={setShowDeleteAllDialog}
+        open={showDeleteAllDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete All Content?</AlertDialogTitle>
@@ -192,8 +249,8 @@ export function ContentFilters({ filters, onFiltersChange }: ContentFiltersProps
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteAllMutation.mutate()}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteAllMutation.mutate()}
             >
               Delete All Content
             </AlertDialogAction>

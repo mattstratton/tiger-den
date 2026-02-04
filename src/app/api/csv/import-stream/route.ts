@@ -1,22 +1,25 @@
-import { NextRequest } from 'next/server';
-import { auth } from '~/server/auth';
-import { db } from '~/server/db';
-import { getSession, deleteSession } from '~/server/services/import-session-storage';
-import { processImportWithProgress } from '~/server/services/csv-processor';
-import type { ImportEvent } from '~/types/import-progress';
+import type { NextRequest } from "next/server";
+import { auth } from "~/server/auth";
+import { db } from "~/server/db";
+import { processImportWithProgress } from "~/server/services/csv-processor";
+import {
+  deleteSession,
+  getSession,
+} from "~/server/services/import-session-storage";
+import type { ImportEvent } from "~/types/import-progress";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[import-stream] Starting SSE connection...');
+    console.log("[import-stream] Starting SSE connection...");
 
     // Verify authentication
     const session = await auth();
     if (!session?.user?.id) {
-      console.log('[import-stream] Unauthorized - no user session');
-      return new Response('Unauthorized', { status: 401 });
+      console.log("[import-stream] Unauthorized - no user session");
+      return new Response("Unauthorized", { status: 401 });
     }
 
     const userId = session.user.id;
@@ -24,11 +27,11 @@ export async function GET(request: NextRequest) {
 
     // Get session ID from query params
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('session');
+    const sessionId = searchParams.get("session");
 
     if (!sessionId) {
-      console.log('[import-stream] Missing session ID in query params');
-      return new Response('Missing session ID', { status: 400 });
+      console.log("[import-stream] Missing session ID in query params");
+      return new Response("Missing session ID", { status: 400 });
     }
 
     console.log(`[import-stream] Looking up session: ${sessionId}`);
@@ -37,15 +40,19 @@ export async function GET(request: NextRequest) {
     const importSession = getSession(sessionId);
     if (!importSession) {
       console.log(`[import-stream] Session not found: ${sessionId}`);
-      return new Response('Session not found or expired', { status: 404 });
+      return new Response("Session not found or expired", { status: 404 });
     }
 
-    console.log(`[import-stream] Session found with ${importSession.rows.length} rows`);
+    console.log(
+      `[import-stream] Session found with ${importSession.rows.length} rows`,
+    );
 
     // Verify session ownership
     if (importSession.userId !== userId) {
-      console.log(`[import-stream] Session ownership mismatch: ${importSession.userId} !== ${userId}`);
-      return new Response('Forbidden', { status: 403 });
+      console.log(
+        `[import-stream] Session ownership mismatch: ${importSession.userId} !== ${userId}`,
+      );
+      return new Response("Forbidden", { status: 403 });
     }
 
     // Set up SSE stream
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
 
         // Keep-alive interval (every 30 seconds)
         const keepAliveInterval = setInterval(() => {
-          controller.enqueue(encoder.encode(': keepalive\n\n'));
+          controller.enqueue(encoder.encode(": keepalive\n\n"));
         }, 30000);
 
         let errorCount = 0;
@@ -74,15 +81,17 @@ export async function GET(request: NextRequest) {
             (progressEvent) => {
               // Transform processor progress event to SSE format
               sendEvent({
-                type: 'progress',
+                type: "progress",
                 phase: progressEvent.phase,
                 current: progressEvent.current,
                 total: progressEvent.total,
-                percentage: Math.round((progressEvent.current / progressEvent.total) * 100),
+                percentage: Math.round(
+                  (progressEvent.current / progressEvent.total) * 100,
+                ),
                 errorCount,
                 message: progressEvent.message,
               });
-            }
+            },
           );
 
           // Update error count from result
@@ -90,17 +99,20 @@ export async function GET(request: NextRequest) {
 
           // Send completion event
           sendEvent({
-            type: 'complete',
+            type: "complete",
             successful: result.successful,
             failed: result.failed,
             errors: result.errors,
             enrichment: result.enrichment,
+            indexed: result.indexed,
+            indexingFailed: result.indexingFailed,
           });
         } catch (error) {
           // Send error event
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
           sendEvent({
-            type: 'error',
+            type: "error",
             message: errorMessage,
           });
         } finally {
@@ -114,14 +126,14 @@ export async function GET(request: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no', // Disable nginx buffering
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no", // Disable nginx buffering
       },
     });
   } catch (error) {
-    console.error('Error in import stream:', error);
-    return new Response('Internal server error', { status: 500 });
+    console.error("Error in import stream:", error);
+    return new Response("Internal server error", { status: 500 });
   }
 }

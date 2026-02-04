@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { api } from "~/trpc/react";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Calendar } from "~/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +24,11 @@ import {
   FormMessage,
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -28,16 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
-import { Calendar } from "~/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { Textarea } from "~/components/ui/textarea";
+import { api } from "~/trpc/react";
 import { CampaignMultiSelect } from "./campaign-multi-select";
 
 const contentFormSchema = z.object({
@@ -73,12 +73,12 @@ export function ContentFormDialog({
   contentId,
 }: ContentFormDialogProps) {
   const utils = api.useUtils();
-  const [date, setDate] = useState<Date>();
+  const [_date, _setDate] = useState<Date>();
 
   // Fetch existing content if editing
   const { data: existingContent } = api.content.getById.useQuery(
     { id: contentId! },
-    { enabled: !!contentId }
+    { enabled: !!contentId },
   );
 
   const form = useForm<ContentFormValues>({
@@ -132,7 +132,10 @@ export function ContentFormDialog({
     const data = {
       ...values,
       tags: values.tags
-        ? values.tags.split(",").map((t) => t.trim()).filter(t => t)
+        ? values.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => t)
         : undefined,
     };
 
@@ -144,8 +147,8 @@ export function ContentFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {contentId ? "Edit Content" : "Add Content"}
@@ -153,10 +156,10 @@ export function ContentFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Basic Information</h3>
+              <h3 className="font-semibold text-sm">Basic Information</h3>
 
               <FormField
                 control={form.control}
@@ -188,16 +191,19 @@ export function ContentFormDialog({
 
               {existingContent?.previousUrls &&
                 existingContent.previousUrls.length > 0 && (
-                  <div className="rounded-lg border p-3 bg-muted/50">
-                    <h4 className="text-sm font-medium mb-2">URL History</h4>
+                  <div className="rounded-lg border bg-muted/50 p-3">
+                    <h4 className="mb-2 font-medium text-sm">URL History</h4>
                     <div className="space-y-1">
                       {existingContent.previousUrls.map((url) => (
-                        <div key={url} className="text-sm text-muted-foreground">
+                        <div
+                          className="text-muted-foreground text-sm"
+                          key={url}
+                        >
                           <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             className="hover:underline"
+                            href={url}
+                            rel="noopener noreferrer"
+                            target="_blank"
                           >
                             {url}
                           </a>
@@ -214,8 +220,8 @@ export function ContentFormDialog({
                   <FormItem>
                     <FormLabel>Content Type *</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
                       defaultValue={field.value}
+                      onValueChange={field.onChange}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -231,9 +237,7 @@ export function ContentFormDialog({
                         <SelectItem value="website_content">
                           Website Content
                         </SelectItem>
-                        <SelectItem value="third_party">
-                          Third Party
-                        </SelectItem>
+                        <SelectItem value="third_party">Third Party</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -252,10 +256,10 @@ export function ContentFormDialog({
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
-                            variant="outline"
                             className={`w-full pl-3 text-left font-normal ${
                               !field.value && "text-muted-foreground"
                             }`}
+                            variant="outline"
                           >
                             {field.value ? (
                               format(new Date(field.value), "PPP")
@@ -266,14 +270,16 @@ export function ContentFormDialog({
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent align="start" className="w-auto p-0">
                         <Calendar
+                          initialFocus
                           mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
                           onSelect={(date) =>
                             field.onChange(date?.toISOString().split("T")[0])
                           }
-                          initialFocus
+                          selected={
+                            field.value ? new Date(field.value) : undefined
+                          }
                         />
                       </PopoverContent>
                     </Popover>
@@ -285,7 +291,7 @@ export function ContentFormDialog({
 
             {/* Details */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Details</h3>
+              <h3 className="font-semibold text-sm">Details</h3>
 
               <FormField
                 control={form.control}
@@ -294,7 +300,7 @@ export function ContentFormDialog({
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value ?? ""} rows={3} />
+                      <Textarea {...field} rows={3} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -332,7 +338,7 @@ export function ContentFormDialog({
 
             {/* Organization */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Organization</h3>
+              <h3 className="font-semibold text-sm">Organization</h3>
 
               <FormField
                 control={form.control}
@@ -341,7 +347,11 @@ export function ContentFormDialog({
                   <FormItem>
                     <FormLabel>Tags (comma-separated)</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value ?? ""} placeholder="postgres, timescale, analytics" />
+                      <Input
+                        {...field}
+                        placeholder="postgres, timescale, analytics"
+                        value={field.value ?? ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -356,8 +366,8 @@ export function ContentFormDialog({
                     <FormLabel>Campaigns</FormLabel>
                     <FormControl>
                       <CampaignMultiSelect
-                        value={field.value || []}
                         onChange={field.onChange}
+                        value={field.value || []}
                       />
                     </FormControl>
                     <FormMessage />
@@ -367,8 +377,8 @@ export function ContentFormDialog({
             </div>
 
             {existingContent && (
-              <div className="space-y-2 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Metadata</h3>
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="font-semibold text-sm">Metadata</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Source:</span>{" "}
@@ -377,7 +387,10 @@ export function ContentFormDialog({
                   <div>
                     <span className="text-muted-foreground">Created:</span>{" "}
                     {existingContent.createdAt
-                      ? format(new Date(existingContent.createdAt), "MMM d, yyyy")
+                      ? format(
+                          new Date(existingContent.createdAt),
+                          "MMM d, yyyy",
+                        )
                       : "N/A"}
                   </div>
                 </div>
@@ -386,13 +399,16 @@ export function ContentFormDialog({
 
             <div className="flex justify-end gap-2">
               <Button
+                onClick={() => onOpenChange(false)}
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+              <Button
+                disabled={createMutation.isPending || updateMutation.isPending}
+                type="submit"
+              >
                 {contentId ? "Update" : "Create"}
               </Button>
             </div>

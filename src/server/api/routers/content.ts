@@ -1,27 +1,40 @@
+import { TRPCError } from "@trpc/server";
+import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { contentItems, contentCampaigns } from "~/server/db/schema";
-import { eq, ilike, and, or, gte, lte, inArray, sql } from "drizzle-orm";
+import {
+  contentCampaigns,
+  contentItems,
+  contentText,
+} from "~/server/db/schema";
+import { generateEmbedding } from "~/server/services/embeddings";
+import { indexContent } from "~/server/services/indexing-orchestrator";
+import { keywordSearch } from "~/server/services/keyword-search";
+import { hybridSearch } from "~/server/services/search-service";
 
 export const contentRouter = createTRPCRouter({
   list: protectedProcedure
     .input(
       z.object({
         search: z.string().optional(),
-        contentTypes: z.array(z.enum([
-          "youtube_video",
-          "blog_post",
-          "case_study",
-          "website_content",
-          "third_party",
-          "other",
-        ])).optional(),
+        contentTypes: z
+          .array(
+            z.enum([
+              "youtube_video",
+              "blog_post",
+              "case_study",
+              "website_content",
+              "third_party",
+              "other",
+            ]),
+          )
+          .optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
         publishDateFrom: z.string().optional(),
         publishDateTo: z.string().optional(),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const conditions = [];
@@ -32,8 +45,8 @@ export const contentRouter = createTRPCRouter({
           or(
             ilike(contentItems.title, `%${input.search}%`),
             ilike(contentItems.description, `%${input.search}%`),
-            ilike(contentItems.currentUrl, `%${input.search}%`)
-          )
+            ilike(contentItems.currentUrl, `%${input.search}%`),
+          ),
         );
       }
 
@@ -58,12 +71,13 @@ export const contentRouter = createTRPCRouter({
             ctx.db
               .selectDistinct({ id: contentCampaigns.contentItemId })
               .from(contentCampaigns)
-              .where(inArray(contentCampaigns.campaignId, input.campaignIds))
-          )
+              .where(inArray(contentCampaigns.campaignId, input.campaignIds)),
+          ),
         );
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       const items = await ctx.db.query.contentItems.findMany({
         where: whereClause,
@@ -113,7 +127,7 @@ export const contentRouter = createTRPCRouter({
         targetAudience: z.string().optional(),
         tags: z.array(z.string()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { campaignIds, ...contentData } = input;
@@ -148,12 +162,20 @@ export const contentRouter = createTRPCRouter({
             campaignIds.map((campaignId) => ({
               contentItemId: item.id,
               campaignId,
-            }))
+            })),
           );
         }
 
         return item;
       });
+
+      // Index content
+      try {
+        await indexContent([{ id: newItem.id, url: newItem.currentUrl }]);
+      } catch (error) {
+        console.error("Content indexing failed:", error);
+        // Don't fail creation if indexing fails
+      }
 
       return newItem;
     }),
@@ -164,21 +186,23 @@ export const contentRouter = createTRPCRouter({
         id: z.string().uuid(),
         title: z.string().min(1).optional(),
         currentUrl: z.string().url().optional(),
-        contentType: z.enum([
-          "youtube_video",
-          "blog_post",
-          "case_study",
-          "website_content",
-          "third_party",
-          "other",
-        ]).optional(),
+        contentType: z
+          .enum([
+            "youtube_video",
+            "blog_post",
+            "case_study",
+            "website_content",
+            "third_party",
+            "other",
+          ])
+          .optional(),
         publishDate: z.string().optional(),
         description: z.string().optional(),
         author: z.string().optional(),
         targetAudience: z.string().optional(),
         tags: z.array(z.string()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, campaignIds, currentUrl, ...updates } = input;
@@ -228,7 +252,7 @@ export const contentRouter = createTRPCRouter({
               campaignIds.map((campaignId) => ({
                 contentItemId: id,
                 campaignId,
-              }))
+              })),
             );
           }
         }
@@ -251,11 +275,144 @@ export const contentRouter = createTRPCRouter({
         throw new Error("Content item not found");
       }
 
-      await ctx.db
-        .delete(contentItems)
-        .where(eq(contentItems.id, input.id));
+      await ctx.db.delete(contentItems).where(eq(contentItems.id, input.id));
 
       return { success: true };
+    }),
+
+  reindexContent: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      // Get content item
+      const item = await ctx.db.query.contentItems.findFirst({
+        where: eq(contentItems.id, input.id),
+      });
+
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Content item not found",
+        });
+      }
+
+      // Run indexing
+      const result = await indexContent([
+        { id: item.id, url: item.currentUrl },
+      ]);
+
+      if (result.failed > 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: result.results[0]?.error ?? "Indexing failed",
+        });
+      }
+
+      return { success: true };
+    }),
+
+  getIndexStatus: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const indexStatus = await ctx.db.query.contentText.findFirst({
+        where: eq(contentText.contentItemId, input.id),
+        columns: {
+          indexStatus: true,
+          indexError: true,
+          indexedAt: true,
+          crawledAt: true,
+          wordCount: true,
+          tokenCount: true,
+        },
+      });
+
+      return indexStatus ?? null;
+    }),
+
+  hybridSearch: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      // Generate embedding for query
+      const embedding = await generateEmbedding(input.query);
+
+      // Perform hybrid search
+      const searchResults = await hybridSearch(
+        input.query,
+        embedding,
+        input.limit,
+      );
+
+      // Enrich results with content item details
+      const contentItemIds = searchResults.map((r) => r.contentItemId);
+
+      if (contentItemIds.length === 0) {
+        return [];
+      }
+
+      const contentItemsData = await ctx.db.query.contentItems.findMany({
+        where: inArray(contentItems.id, contentItemIds),
+        with: {
+          campaigns: {
+            with: {
+              campaign: true,
+            },
+          },
+        },
+      });
+
+      // Create a map for quick lookup
+      const contentMap = new Map(contentItemsData.map((item) => [item.id, item]));
+
+      // Combine search results with content details
+      return searchResults.map((result) => ({
+        ...result,
+        contentItem: contentMap.get(result.contentItemId) ?? null,
+      }));
+    }),
+
+  keywordSearch: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      // Perform keyword-only search (BM25)
+      const searchResults = await keywordSearch(input.query, input.limit);
+
+      // Enrich results with content item details
+      const contentItemIds = searchResults.map((r) => r.contentItemId);
+
+      if (contentItemIds.length === 0) {
+        return [];
+      }
+
+      const contentItemsData = await ctx.db.query.contentItems.findMany({
+        where: inArray(contentItems.id, contentItemIds),
+        with: {
+          campaigns: {
+            with: {
+              campaign: true,
+            },
+          },
+        },
+      });
+
+      // Create a map for quick lookup
+      const contentMap = new Map(
+        contentItemsData.map((item) => [item.id, item]),
+      );
+
+      // Combine search results with content details
+      return searchResults.map((result) => ({
+        ...result,
+        contentItem: contentMap.get(result.contentItemId) ?? null,
+      }));
     }),
 
   getById: protectedProcedure

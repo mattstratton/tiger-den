@@ -7,13 +7,9 @@ export const csvRouter = createTRPCRouter({
     .input(
       z.object({
         rows: z.array(z.record(z.string(), z.unknown())),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      return processImportWithProgress(
-        input.rows,
-        ctx.session.user.id,
-        ctx.db,
-      );
+      return processImportWithProgress(input.rows, ctx.session.user.id, ctx.db);
     }),
 });

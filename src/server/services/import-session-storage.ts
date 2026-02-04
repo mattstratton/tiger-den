@@ -12,7 +12,7 @@ const sessions = new Map<string, ImportSession>();
 export function createSession(
   id: string,
   userId: string,
-  rows: Array<Record<string, unknown>>
+  rows: Array<Record<string, unknown>>,
 ): ImportSession {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes

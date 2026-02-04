@@ -29,6 +29,20 @@
       "when": 1770104000000,
       "tag": "0003_fix_expires_at_and_email",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770106000000,
+      "tag": "0004_add_content_text_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770108000000,
+      "tag": "0005_add_content_chunks_table",
+      "breakpoints": true
     }
   ]
 }

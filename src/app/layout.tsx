@@ -1,13 +1,12 @@
 import "~/styles/globals.css";
 
-import { type Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
+import type { Metadata } from "next";
 import Link from "next/link";
-
-import { TRPCReactProvider } from "~/trpc/react";
-import { auth, signOut } from "~/server/auth";
 import { redirect } from "next/navigation";
+import { auth, signOut } from "~/server/auth";
+import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
   title: "Tiger Den - Content Inventory",
@@ -21,21 +20,27 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
       <body className="font-sans">
         <TRPCReactProvider>
           <nav className="border-b">
             <div className="container mx-auto flex h-16 items-center justify-between px-4">
               <div className="flex items-center">
-                <Link href="/" className="font-bold text-xl">
+                <Link className="font-bold text-xl" href="/">
                   Tiger Den
                 </Link>
                 {session?.user && (
                   <div className="ml-8 flex gap-4">
-                    <Link href="/content" className="text-sm font-medium hover:underline">
+                    <Link
+                      className="font-medium text-sm hover:underline"
+                      href="/content"
+                    >
                       Content
                     </Link>
-                    <Link href="/campaigns" className="text-sm font-medium hover:underline">
+                    <Link
+                      className="font-medium text-sm hover:underline"
+                      href="/campaigns"
+                    >
                       Campaigns
                     </Link>
                   </div>
@@ -49,7 +54,10 @@ export default async function RootLayout({
                     redirect("/");
                   }}
                 >
-                  <button type="submit" className="text-sm font-medium hover:underline">
+                  <button
+                    className="font-medium text-sm hover:underline"
+                    type="submit"
+                  >
                     Sign out
                   </button>
                 </form>

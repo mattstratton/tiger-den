@@ -9,7 +9,7 @@ import * as cheerio from "cheerio";
  */
 export async function fetchPageTitle(
   url: string,
-  timeoutMs = 5000
+  timeoutMs = 5000,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -41,7 +41,7 @@ export async function fetchPageTitle(
 
     // Return title or null if empty
     return title || null;
-  } catch (error) {
+  } catch (_error) {
     // Timeout, network error, parsing error, etc.
     return null;
   } finally {

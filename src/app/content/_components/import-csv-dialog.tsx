@@ -1,9 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { useDropzone } from "react-dropzone";
+import {
+  AlertCircle,
+  CheckCircle,
+  CheckCircle2,
+  Database,
+  Download,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import Papa from "papaparse";
-import { Upload, Download, AlertCircle, CheckCircle, Loader2, CheckCircle2, Database } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Progress } from "~/components/ui/progress";
-import { Badge } from "~/components/ui/badge";
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -34,13 +42,15 @@ interface ImportResult {
     successful: number;
     failed: number;
   };
+  indexed: number;
+  indexingFailed: number;
 }
 
 export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState<{
-    phase: 'enriching' | 'validating' | 'inserting' | null;
+    phase: "enriching" | "validating" | "inserting" | null;
     current: number;
     total: number;
     percentage: number;
@@ -57,155 +67,167 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     };
   }, [eventSource]);
 
+  const handleDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
 
-  const handleDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
+    setImporting(true);
+    setResult(null);
+    setProgress(null);
 
-      setImporting(true);
-      setResult(null);
-      setProgress(null);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        // Parse the CSV data
+        const rows = results.data as Array<Record<string, unknown>>;
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          // Parse the CSV data
-          const rows = results.data as Array<Record<string, unknown>>;
+        if (rows.length === 0) {
+          setResult({
+            successful: 0,
+            failed: 0,
+            errors: [{ row: 0, message: "CSV file is empty" }],
+            indexed: 0,
+            indexingFailed: 0,
+          });
+          setImporting(false);
+          return;
+        }
 
-          if (rows.length === 0) {
-            setResult({
-              successful: 0,
-              failed: 0,
-              errors: [{ row: 0, message: "CSV file is empty" }],
-            });
-            setImporting(false);
-            return;
+        // Check row count limit
+        if (rows.length > 1000) {
+          setResult({
+            successful: 0,
+            failed: 0,
+            errors: [
+              {
+                row: 0,
+                message:
+                  "CSV exceeds 1000 row limit. Please split into smaller files.",
+              },
+            ],
+            indexed: 0,
+            indexingFailed: 0,
+          });
+          setImporting(false);
+          return;
+        }
+
+        // Generate session ID and start SSE-based import
+        const sessionId = crypto.randomUUID();
+
+        try {
+          // Send CSV rows to start-import endpoint
+          const response = await fetch("/api/csv/start-import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, rows }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to start import");
           }
 
-          // Check row count limit
-          if (rows.length > 1000) {
-            setResult({
-              successful: 0,
-              failed: 0,
-              errors: [
-                {
-                  row: 0,
-                  message:
-                    "CSV exceeds 1000 row limit. Please split into smaller files.",
-                },
-              ],
-            });
-            setImporting(false);
-            return;
-          }
+          // Open EventSource connection to receive progress updates
+          const es = new EventSource(
+            `/api/csv/import-stream?session=${sessionId}`,
+          );
+          setEventSource(es);
 
-          // Generate session ID and start SSE-based import
-          const sessionId = crypto.randomUUID();
+          // Handle all SSE messages
+          es.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
 
-          try {
-            // Send CSV rows to start-import endpoint
-            const response = await fetch("/api/csv/start-import", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId, rows }),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to start import");
-            }
-
-            // Open EventSource connection to receive progress updates
-            const es = new EventSource(
-              `/api/csv/import-stream?session=${sessionId}`
-            );
-            setEventSource(es);
-
-            // Handle all SSE messages
-            es.onmessage = (event) => {
-              try {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'progress') {
-                  setProgress({
-                    phase: data.phase,
-                    current: data.current,
-                    total: data.total,
-                    percentage: data.percentage,
-                    errorCount: data.errorCount,
-                    message: data.message,
-                  });
-                } else if (data.type === 'complete') {
-                  setResult({
-                    successful: data.successful,
-                    failed: data.failed,
-                    errors: data.errors,
-                    enrichment: data.enrichment,
-                  });
-                  setImporting(false);
-                  setProgress(null);
-                  es.close();
-                  setEventSource(null);
-                } else if (data.type === 'error') {
-                  console.error('Import error:', data.message);
-                  setResult({
-                    successful: 0,
-                    failed: 1,
-                    errors: [{ row: 0, message: data.message }],
-                  });
-                  setImporting(false);
-                  setProgress(null);
-                  es.close();
-                  setEventSource(null);
-                }
-              } catch (parseError) {
-                console.error('Failed to parse SSE message:', parseError);
+              if (data.type === "progress") {
+                setProgress({
+                  phase: data.phase,
+                  current: data.current,
+                  total: data.total,
+                  percentage: data.percentage,
+                  errorCount: data.errorCount,
+                  message: data.message,
+                });
+              } else if (data.type === "complete") {
+                setResult({
+                  successful: data.successful,
+                  failed: data.failed,
+                  errors: data.errors,
+                  enrichment: data.enrichment,
+                  indexed: data.indexed,
+                  indexingFailed: data.indexingFailed,
+                });
+                setImporting(false);
+                setProgress(null);
+                es.close();
+                setEventSource(null);
+              } else if (data.type === "error") {
+                console.error("Import error:", data.message);
+                setResult({
+                  successful: 0,
+                  failed: 1,
+                  errors: [{ row: 0, message: data.message }],
+                  indexed: 0,
+                  indexingFailed: 0,
+                });
+                setImporting(false);
+                setProgress(null);
+                es.close();
+                setEventSource(null);
               }
-            };
+            } catch (parseError) {
+              console.error("Failed to parse SSE message:", parseError);
+            }
+          };
 
-            // Handle connection errors
-            es.onerror = () => {
-              console.error("EventSource connection error");
-              setResult({
-                successful: 0,
-                failed: 1,
-                errors: [{ row: 0, message: "Import stream connection failed" }],
-              });
-              setImporting(false);
-              setProgress(null);
-              es.close();
-              setEventSource(null);
-            };
-          } catch (error) {
-            console.error("Import error:", error);
+          // Handle connection errors
+          es.onerror = () => {
+            console.error("EventSource connection error");
             setResult({
               successful: 0,
               failed: 1,
-              errors: [
-                {
-                  row: 0,
-                  message:
-                    error instanceof Error ? error.message : "Import failed",
-                },
-              ],
+              errors: [{ row: 0, message: "Import stream connection failed" }],
+              indexed: 0,
+              indexingFailed: 0,
             });
             setImporting(false);
             setProgress(null);
-          }
-        },
-        error: (error) => {
+            es.close();
+            setEventSource(null);
+          };
+        } catch (error) {
+          console.error("Import error:", error);
           setResult({
             successful: 0,
             failed: 1,
-            errors: [{ row: 0, message: `Failed to parse CSV: ${error.message}` }],
+            errors: [
+              {
+                row: 0,
+                message:
+                  error instanceof Error ? error.message : "Import failed",
+              },
+            ],
+            indexed: 0,
+            indexingFailed: 0,
           });
           setImporting(false);
-        },
-      });
-    },
-    []
-  );
+          setProgress(null);
+        }
+      },
+      error: (error) => {
+        setResult({
+          successful: 0,
+          failed: 1,
+          errors: [
+            { row: 0, message: `Failed to parse CSV: ${error.message}` },
+          ],
+          indexed: 0,
+          indexingFailed: 0,
+        });
+        setImporting(false);
+      },
+    });
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleDrop,
@@ -229,6 +251,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 "File size exceeds 5MB limit. Please split into smaller files.",
             },
           ],
+          indexed: 0,
+          indexingFailed: 0,
         });
       } else {
         setResult({
@@ -240,6 +264,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               message: rejection?.errors[0]?.message ?? "File rejected",
             },
           ],
+          indexed: 0,
+          indexingFailed: 0,
         });
       }
     },
@@ -308,8 +334,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <Dialog onOpenChange={handleClose} open={open}>
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Content from CSV</DialogTitle>
           <DialogDescription>
@@ -321,15 +347,15 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
           {/* Download Template Button */}
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadTemplate}
               disabled={importing}
+              onClick={handleDownloadTemplate}
+              size="sm"
+              variant="outline"
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" />
               Download Template
             </Button>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Download a sample CSV file to see the expected format
             </p>
           </div>
@@ -338,21 +364,21 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
           {!result && (
             <div
               {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
-                transition-colors
-                ${isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"}
-                ${importing ? "opacity-50 cursor-not-allowed" : "hover:border-primary hover:bg-primary/5"}
+              className={`cursor-pointer rounded-lg border-2 border-dashed p-12 text-center transition-colors ${isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"}
+                ${importing ? "cursor-not-allowed opacity-50" : "hover:border-primary hover:bg-primary/5"}
               `}
             >
               <input {...getInputProps()} />
-              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <Upload className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               {importing ? (
-                <div className="space-y-4 max-w-md mx-auto">
+                <div className="mx-auto max-w-md space-y-4">
                   {/* Progress bar */}
                   <div className="space-y-2">
-                    <Progress value={progress?.percentage ?? 0} className="h-3" />
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <Progress
+                      className="h-3"
+                      value={progress?.percentage ?? 0}
+                    />
+                    <div className="flex items-center justify-between text-muted-foreground text-xs">
                       <span>
                         {progress?.current ?? 0} / {progress?.total ?? 0} items
                       </span>
@@ -362,16 +388,16 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
 
                   {/* Status message */}
                   <div className="flex items-center justify-center gap-2">
-                    {progress?.phase === 'enriching' && (
+                    {progress?.phase === "enriching" && (
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
                     )}
-                    {progress?.phase === 'validating' && (
+                    {progress?.phase === "validating" && (
                       <CheckCircle2 className="h-4 w-4 text-primary" />
                     )}
-                    {progress?.phase === 'inserting' && (
+                    {progress?.phase === "inserting" && (
                       <Database className="h-4 w-4 text-primary" />
                     )}
-                    <p className="text-sm font-medium">
+                    <p className="font-medium text-sm">
                       {progress?.message ?? "Starting import..."}
                     </p>
                   </div>
@@ -379,17 +405,20 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   {/* Error count badge */}
                   {progress && progress.errorCount > 0 && (
                     <div className="flex justify-center">
-                      <Badge variant="destructive" className="gap-1">
+                      <Badge className="gap-1" variant="destructive">
                         <AlertCircle className="h-3 w-3" />
-                        {progress.errorCount} {progress.errorCount === 1 ? "error" : "errors"}
+                        {progress.errorCount}{" "}
+                        {progress.errorCount === 1 ? "error" : "errors"}
                       </Badge>
                     </div>
                   )}
 
                   {/* Phase indicators */}
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <div className={`flex items-center gap-1 ${progress?.phase === 'enriching' ? 'text-primary font-medium' : ''}`}>
-                      {progress?.phase === 'enriching' ? (
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground text-xs">
+                    <div
+                      className={`flex items-center gap-1 ${progress?.phase === "enriching" ? "font-medium text-primary" : ""}`}
+                    >
+                      {progress?.phase === "enriching" ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <CheckCircle2 className="h-3 w-3" />
@@ -397,10 +426,12 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                       <span>Enrich</span>
                     </div>
                     <span>→</span>
-                    <div className={`flex items-center gap-1 ${progress?.phase === 'validating' ? 'text-primary font-medium' : ''}`}>
-                      {progress?.phase === 'validating' ? (
+                    <div
+                      className={`flex items-center gap-1 ${progress?.phase === "validating" ? "font-medium text-primary" : ""}`}
+                    >
+                      {progress?.phase === "validating" ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : progress?.phase === 'inserting' ? (
+                      ) : progress?.phase === "inserting" ? (
                         <CheckCircle2 className="h-3 w-3" />
                       ) : (
                         <div className="h-3 w-3" />
@@ -408,8 +439,10 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                       <span>Validate</span>
                     </div>
                     <span>→</span>
-                    <div className={`flex items-center gap-1 ${progress?.phase === 'inserting' ? 'text-primary font-medium' : ''}`}>
-                      {progress?.phase === 'inserting' ? (
+                    <div
+                      className={`flex items-center gap-1 ${progress?.phase === "inserting" ? "font-medium text-primary" : ""}`}
+                    >
+                      {progress?.phase === "inserting" ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <div className="h-3 w-3" />
@@ -419,13 +452,13 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   </div>
                 </div>
               ) : isDragActive ? (
-                <p className="text-lg font-medium">Drop the CSV file here</p>
+                <p className="font-medium text-lg">Drop the CSV file here</p>
               ) : (
                 <>
-                  <p className="text-lg font-medium mb-2">
+                  <p className="mb-2 font-medium text-lg">
                     Drag and drop a CSV file here
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     or click to select a file
                   </p>
                 </>
@@ -463,12 +496,12 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {/* Error List */}
               {result.errors.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Error Details:</h4>
-                  <div className="max-h-64 overflow-y-auto border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Error Details:</h4>
+                  <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-4">
                     {result.errors.map((error, index) => (
                       <div
+                        className="rounded bg-destructive/10 p-2 text-sm"
                         key={index}
-                        className="text-sm p-2 bg-destructive/10 rounded"
                       >
                         <span className="font-medium">Row {error.row}:</span>{" "}
                         {error.field && (
@@ -488,15 +521,30 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 <Alert>
                   <AlertTitle>Title Enrichment</AlertTitle>
                   <AlertDescription>
-                    Fetched {result.enrichment.successful} of {result.enrichment.attempted} titles from URLs.
-                    {result.enrichment.failed > 0 && ` (${result.enrichment.failed} failed)`}
+                    Fetched {result.enrichment.successful} of{" "}
+                    {result.enrichment.attempted} titles from URLs.
+                    {result.enrichment.failed > 0 &&
+                      ` (${result.enrichment.failed} failed)`}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Indexing Results */}
+              {result.successful > 0 && (
+                <Alert>
+                  <AlertTitle>Content Indexing</AlertTitle>
+                  <AlertDescription>
+                    Indexed {result.indexed} of {result.successful} items for
+                    search.
+                    {result.indexingFailed > 0 &&
+                      ` (${result.indexingFailed} failed - will retry automatically)`}
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Actions */}
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleClose}>
+                <Button onClick={handleClose} variant="outline">
                   Close
                 </Button>
                 <Button

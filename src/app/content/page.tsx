@@ -7,14 +7,15 @@ import { ContentTable } from "./_components/content-table";
 export default function ContentPage() {
   const [filters, setFilters] = useState({
     search: "",
+    searchMode: "metadata" as "metadata" | "keyword" | "fullContent",
     contentTypes: [] as string[],
     campaignIds: [] as string[],
   });
 
   return (
     <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Content Inventory</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="font-bold text-3xl">Content Inventory</h1>
       </div>
 
       <ContentFilters filters={filters} onFiltersChange={setFilters} />

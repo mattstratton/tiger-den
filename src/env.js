@@ -8,7 +8,9 @@ export const env = createEnv({
    */
   server: {
     AUTH_SECRET:
-      process.env.NODE_ENV === "production" ? z.string() : z.string().optional(),
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional(),
     AUTH_URL: z.string().url().optional(),
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
@@ -17,6 +19,11 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    // Content indexing
+    INDEXING_SYNC_THRESHOLD: z.string().optional(),
+    INDEXING_TIMEOUT_MS: z.string().optional(),
+    ENABLE_CONTENT_INDEXING: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(), // Only needed for Full Content (AI) search
   },
 
   /**
@@ -40,6 +47,10 @@ export const env = createEnv({
     GOOGLE_HOSTED_DOMAIN: process.env.GOOGLE_HOSTED_DOMAIN,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    INDEXING_SYNC_THRESHOLD: process.env.INDEXING_SYNC_THRESHOLD,
+    INDEXING_TIMEOUT_MS: process.env.INDEXING_TIMEOUT_MS,
+    ENABLE_CONTENT_INDEXING: process.env.ENABLE_CONTENT_INDEXING,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -1,7 +1,9 @@
 "use client";
 
+import { format } from "date-fns";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { api } from "~/trpc/react";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Table,
@@ -11,15 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { Badge } from "~/components/ui/badge";
-import { format } from "date-fns";
-import { Pencil, Trash2 } from "lucide-react";
+import { api } from "~/trpc/react";
 import { CampaignFormDialog } from "./campaign-form-dialog";
 import { DeleteCampaignDialog } from "./delete-campaign-dialog";
 
 export function CampaignsList() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCampaignId, setEditingCampaignId] = useState<string | undefined>();
+  const [editingCampaignId, setEditingCampaignId] = useState<
+    string | undefined
+  >();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingCampaign, setDeletingCampaign] = useState<{
     id: string;
@@ -39,7 +41,11 @@ export function CampaignsList() {
     setDialogOpen(true);
   };
 
-  const handleDeleteCampaign = (campaignId: string, campaignName: string, contentCount: number) => {
+  const handleDeleteCampaign = (
+    campaignId: string,
+    campaignName: string,
+    contentCount: number,
+  ) => {
     setDeletingCampaign({ id: campaignId, name: campaignName, contentCount });
     setDeleteDialogOpen(true);
   };
@@ -54,22 +60,22 @@ export function CampaignsList() {
         <div className="flex justify-end">
           <Button onClick={handleAddCampaign}>Add Campaign</Button>
         </div>
-        <div className="text-center py-12 text-muted-foreground">
+        <div className="py-12 text-center text-muted-foreground">
           No campaigns found. Create your first campaign to get started.
         </div>
         <CampaignFormDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
           campaignId={editingCampaignId}
+          onOpenChange={setDialogOpen}
+          open={dialogOpen}
         />
 
         {deletingCampaign && (
           <DeleteCampaignDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
             campaignId={deletingCampaign.id}
             campaignName={deletingCampaign.name}
             contentCount={deletingCampaign.contentCount}
+            onOpenChange={setDeleteDialogOpen}
+            open={deleteDialogOpen}
           />
         )}
       </div>
@@ -101,24 +107,36 @@ export function CampaignsList() {
                 <TableCell>
                   <Badge variant="secondary">{campaign.contentCount}</Badge>
                 </TableCell>
-                <TableCell>{format(new Date(campaign.createdAt), "MMM d, yyyy")}</TableCell>
+                <TableCell>
+                  {format(new Date(campaign.createdAt), "MMM d, yyyy")}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditCampaign(campaign.id)}
                       aria-label={`Edit ${campaign.name}`}
+                      onClick={() => handleEditCampaign(campaign.id)}
+                      size="icon"
+                      variant="ghost"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteCampaign(campaign.id, campaign.name, campaign.contentCount)}
-                      disabled={campaign.contentCount > 0}
-                      title={campaign.contentCount > 0 ? "Cannot delete campaign with assigned content" : undefined}
                       aria-label={`Delete ${campaign.name}`}
+                      disabled={campaign.contentCount > 0}
+                      onClick={() =>
+                        handleDeleteCampaign(
+                          campaign.id,
+                          campaign.name,
+                          campaign.contentCount,
+                        )
+                      }
+                      size="icon"
+                      title={
+                        campaign.contentCount > 0
+                          ? "Cannot delete campaign with assigned content"
+                          : undefined
+                      }
+                      variant="ghost"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -131,18 +149,18 @@ export function CampaignsList() {
       </div>
 
       <CampaignFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
         campaignId={editingCampaignId}
+        onOpenChange={setDialogOpen}
+        open={dialogOpen}
       />
 
       {deletingCampaign && (
         <DeleteCampaignDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
           campaignId={deletingCampaign.id}
           campaignName={deletingCampaign.name}
           contentCount={deletingCampaign.contentCount}
+          onOpenChange={setDeleteDialogOpen}
+          open={deleteDialogOpen}
         />
       )}
     </div>

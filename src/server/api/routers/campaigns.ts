@@ -1,7 +1,7 @@
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { campaigns, contentCampaigns } from "~/server/db/schema";
-import { eq, sql } from "drizzle-orm";
 
 export const campaignsRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -14,10 +14,7 @@ export const campaignsRouter = createTRPCRouter({
         contentCount: sql<number>`cast(count(${contentCampaigns.contentItemId}) as int)`,
       })
       .from(campaigns)
-      .leftJoin(
-        contentCampaigns,
-        eq(campaigns.id, contentCampaigns.campaignId)
-      )
+      .leftJoin(contentCampaigns, eq(campaigns.id, contentCampaigns.campaignId))
       .groupBy(campaigns.id)
       .orderBy(campaigns.name);
 
@@ -43,7 +40,7 @@ export const campaignsRouter = createTRPCRouter({
       z.object({
         name: z.string().min(1),
         description: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // Check for duplicate name
@@ -69,7 +66,7 @@ export const campaignsRouter = createTRPCRouter({
         id: z.string().uuid(),
         name: z.string().min(1).optional(),
         description: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...updates } = input;
@@ -107,7 +104,7 @@ export const campaignsRouter = createTRPCRouter({
 
       if (count > 0) {
         throw new Error(
-          "Cannot delete campaign that is assigned to content items"
+          "Cannot delete campaign that is assigned to content items",
         );
       }
 

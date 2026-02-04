@@ -1,9 +1,10 @@
-import { z, ZodError } from "zod";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { ZodError, z } from "zod";
 import * as schema from "~/server/db/schema";
 import { fetchPageTitle } from "~/server/services/title-fetcher";
 import { parseFlexibleDate } from "~/server/utils/date-parser";
+import { indexContent } from "./indexing-orchestrator";
 
 const { contentItems, contentCampaigns, campaigns } = schema;
 
@@ -48,6 +49,8 @@ export interface ProcessResult {
   failed: number;
   errors: ImportError[];
   enrichment: EnrichmentStats;
+  indexed: number;
+  indexingFailed: number;
 }
 
 export interface ProgressEvent {
@@ -74,6 +77,7 @@ export async function processImportWithProgress(
   let failed = 0;
   const errors: ImportError[] = [];
   const processedUrls = new Set<string>();
+  const successfulInserts: Array<{ id: string; currentUrl: string }> = [];
 
   // Enrich blank titles by fetching from URLs
   const enrichmentStats: EnrichmentStats = {
@@ -132,8 +136,8 @@ export async function processImportWithProgress(
 
     try {
       // Normalize date format if present
-      if (typeof row.publish_date === 'string') {
-        if (row.publish_date.trim() === '') {
+      if (typeof row.publish_date === "string") {
+        if (row.publish_date.trim() === "") {
           row.publish_date = undefined; // Empty → NULL
         } else {
           const parsedDate = parseFlexibleDate(row.publish_date);
@@ -163,7 +167,10 @@ export async function processImportWithProgress(
 
       // Parse tags (comma-separated)
       const tags = validatedRow.tags
-        ? validatedRow.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        ? validatedRow.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
         : undefined;
 
       // Parse campaign names (comma-separated)
@@ -228,6 +235,12 @@ export async function processImportWithProgress(
             })),
           );
         }
+
+        // Track successful insert for indexing
+        successfulInserts.push({
+          id: item.id,
+          currentUrl: item.currentUrl,
+        });
       });
 
       // Track processed URL after successful transaction
@@ -280,10 +293,35 @@ export async function processImportWithProgress(
     });
   }
 
+  // Index content (sync for ≤10 items, async for 11+)
+  let indexed = 0;
+  let indexingFailed = 0;
+
+  const itemsToIndex = successfulInserts.map((item) => ({
+    id: item.id,
+    url: item.currentUrl,
+  }));
+
+  if (itemsToIndex.length > 0) {
+    try {
+      const indexingResult = await indexContent(itemsToIndex);
+
+      // Update stats with indexing results
+      indexed = indexingResult.succeeded;
+      indexingFailed = indexingResult.failed;
+    } catch (error) {
+      console.error("Content indexing failed:", error);
+      // Don't fail import if indexing fails
+      indexingFailed = itemsToIndex.length;
+    }
+  }
+
   return {
     successful,
     failed,
     errors,
     enrichment: enrichmentStats,
+    indexed,
+    indexingFailed,
   };
 }
