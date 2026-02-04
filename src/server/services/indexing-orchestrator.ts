@@ -5,6 +5,7 @@ import { db } from "~/server/db";
 import { contentChunks, contentText } from "~/server/db/schema";
 import { chunkContent } from "./content-chunker";
 import { ContentFetchError, fetchContent } from "./content-fetcher";
+import { getQueue } from "~/server/queue/indexing-queue";
 
 export interface IndexingResult {
   success: boolean;
@@ -145,6 +146,7 @@ export async function indexContent(
       total: items.length,
       succeeded: 0,
       failed: 0,
+      queued: 0,
       results: items.map((item) => ({
         success: false,
         contentItemId: item.id,
@@ -169,16 +171,36 @@ export async function indexContent(
       total: items.length,
       succeeded,
       failed,
+      queued: 0,
       results,
     };
   }
 
-  // Async indexing (Phase 2) - for now just mark as pending
-  // TODO: Implement background job queue (BullMQ/pg-boss)
-  const results: IndexingResult[] = [];
+  // Async indexing - sync first N items, enqueue rest
+  const syncItems = items.slice(0, indexingConfig.syncThreshold);
+  const queueItems = items.slice(indexingConfig.syncThreshold);
 
-  for (const item of items) {
+  // Process first batch synchronously
+  const syncResults: IndexingResult[] = [];
+  for (const item of syncItems) {
+    const result = await indexSingleItem(item.id, item.url);
+    syncResults.push(result);
+  }
+
+  // Enqueue remaining items
+  const queue = await getQueue();
+  const queueResults: IndexingResult[] = [];
+
+  for (const item of queueItems) {
     try {
+      // Enqueue job with singleton key to prevent duplicates
+      await queue.send(
+        "index-content",
+        { contentItemId: item.id, url: item.url },
+        { singletonKey: item.id },
+      );
+
+      // Create placeholder content_text record
       await db.insert(contentText).values({
         contentItemId: item.id,
         fullText: "",
@@ -190,24 +212,31 @@ export async function indexContent(
         indexStatus: "pending",
       });
 
-      results.push({
+      queueResults.push({
         success: true,
         contentItemId: item.id,
       });
     } catch (error) {
-      results.push({
+      queueResults.push({
         success: false,
         contentItemId: item.id,
         error:
-          error instanceof Error ? error.message : "Failed to mark as pending",
+          error instanceof Error ? error.message : "Failed to enqueue item",
       });
     }
   }
 
+  // Combine results
+  const allResults = [...syncResults, ...queueResults];
+  const succeeded = syncResults.filter((r) => r.success).length;
+  const failed = syncResults.filter((r) => !r.success).length;
+  const queued = queueResults.filter((r) => r.success).length;
+
   return {
     total: items.length,
-    succeeded: results.filter((r) => r.success).length,
-    failed: results.filter((r) => !r.success).length,
-    results,
+    succeeded,
+    failed,
+    queued,
+    results: allResults,
   };
 }
