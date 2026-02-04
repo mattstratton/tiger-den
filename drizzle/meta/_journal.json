@@ -43,6 +43,13 @@
       "when": 1770108000000,
       "tag": "0005_add_content_chunks_table",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1738703950000,
+      "tag": "0006_add_search_path",
+      "breakpoints": true
     }
   ]
 }

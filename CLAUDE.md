@@ -30,6 +30,13 @@ All tables use the `tiger_den` schema via `pgSchema()`.
 - `pg_textsearch` - BM25 keyword search
 - `pgai` - Automated embedding generation
 
+### Database User Configuration
+The `tiger_den` user requires the correct search_path to access pgvector types:
+```sql
+ALTER ROLE tiger_den SET search_path = tiger_den, public;
+```
+This is handled automatically by the migration `0003_add_search_path.sql`.
+
 ## System Requirements
 
 - **Node.js**: v20 or later

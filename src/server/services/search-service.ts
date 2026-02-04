@@ -87,17 +87,20 @@ export async function hybridSearch(
     `),
 
     // Query 2: Vector semantic search
-    db.execute(sql`
-      SELECT
-        ct.content_item_id,
-        cc.id as chunk_id,
-        cc.chunk_text
-      FROM tiger_den.content_chunks cc
-      JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
-      WHERE cc.embedding IS NOT NULL
-      ORDER BY cc.embedding <=> ${sql.raw(`'[${embedding.join(",")}]'::halfvec(1536)`)}
-      LIMIT ${candidateLimit}
-    `),
+    (async () => {
+      const embeddingStr = `[${embedding.join(",")}]`;
+      return db.execute(sql`
+        SELECT
+          ct.content_item_id,
+          cc.id as chunk_id,
+          cc.chunk_text
+        FROM tiger_den.content_chunks cc
+        JOIN tiger_den.content_text ct ON ct.id = cc.content_text_id
+        WHERE cc.embedding IS NOT NULL
+        ORDER BY cc.embedding <=> ${sql.raw(`'${embeddingStr}'::halfvec(1536)`)}
+        LIMIT ${candidateLimit}
+      `);
+    })(),
   ]);
 
   // Fuse with RRF
