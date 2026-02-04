@@ -43,6 +43,12 @@ export default async function RootLayout({
                     >
                       Campaigns
                     </Link>
+                    <Link
+                      className="font-medium text-sm hover:underline"
+                      href="/admin/queue"
+                    >
+                      Queue
+                    </Link>
                   </div>
                 )}
               </div>
