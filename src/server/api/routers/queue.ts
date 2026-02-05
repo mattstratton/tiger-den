@@ -65,18 +65,6 @@ export const queueRouter = createTRPCRouter({
   enqueuePending: protectedProcedure.mutation(async () => {
     const queue = await getQueue();
 
-    // Ensure queue exists
-    try {
-      await queue.createQueue("index-content", {
-        retryLimit: 3,
-        retryDelay: 5,
-        retryBackoff: true,
-      });
-      console.log(`[enqueuePending] Queue created or already exists`);
-    } catch (error) {
-      console.log(`[enqueuePending] Queue creation error (might already exist):`, error);
-    }
-
     // Find all content items with pending status
     const pendingItems = await db.query.contentText.findMany({
       where: eq(contentText.indexStatus, "pending"),
