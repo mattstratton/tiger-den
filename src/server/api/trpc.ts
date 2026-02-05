@@ -33,6 +33,7 @@ export const createTRPCContext = async (opts: {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      role?: "admin" | "contributor" | "reader" | null;
     };
   } | null;
 }) => {
@@ -139,8 +140,39 @@ export const protectedProcedure = t.procedure
           user: {
             ...ctx.session.user,
             id: ctx.session.user.id,
+            role: ctx.session.user.role ?? "reader",
           },
         },
       },
     });
   });
+
+/**
+ * Contributor procedure - requires contributor or admin role
+ *
+ * Use this for operations that modify content (create, edit, delete content items, CSV import, etc.)
+ */
+export const contributorProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.session.user.role === "reader") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Contributor access required",
+    });
+  }
+  return next({ ctx });
+});
+
+/**
+ * Admin procedure - requires admin role
+ *
+ * Use this for admin-only operations (manage content types, user roles, queue, etc.)
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.session.user.role !== "admin") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Admin access required",
+    });
+  }
+  return next({ ctx });
+});

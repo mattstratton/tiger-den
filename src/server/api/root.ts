@@ -1,8 +1,10 @@
 import { campaignsRouter } from "~/server/api/routers/campaigns";
 import { contentRouter } from "~/server/api/routers/content";
+import { contentTypesRouter } from "~/server/api/routers/contentTypes";
 import { csvRouter } from "~/server/api/routers/csv";
 import { postRouter } from "~/server/api/routers/post";
 import { queueRouter } from "~/server/api/routers/queue";
+import { usersRouter } from "~/server/api/routers/users";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { startWorker } from "~/server/queue/worker";
 
@@ -24,6 +26,8 @@ export const appRouter = createTRPCRouter({
   campaigns: campaignsRouter,
   csv: csvRouter,
   queue: queueRouter,
+  contentTypes: contentTypesRouter,
+  users: usersRouter,
 });
 
 // export type definition of API

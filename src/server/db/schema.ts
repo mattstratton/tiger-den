@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   customType,
   date,
   index,
@@ -25,13 +26,10 @@ const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>(
 );
 
 // Enums in tiger_den schema
-export const contentTypeEnum = tigerDenSchema.enum("content_type", [
-  "youtube_video",
-  "blog_post",
-  "case_study",
-  "website_content",
-  "third_party",
-  "other",
+export const userRoleEnum = tigerDenSchema.enum("user_role", [
+  "admin",
+  "contributor",
+  "reader",
 ]);
 
 export const sourceEnum = tigerDenSchema.enum("source", [
@@ -77,6 +75,7 @@ export const users = tigerDenSchema.table("users", {
   email: text("email").notNull().unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  role: userRoleEnum("role").notNull().default("reader"),
   createdAt: timestamp("createdAt", { withTimezone: true })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
@@ -151,7 +150,9 @@ export const contentItems = tigerDenSchema.table(
     title: text("title").notNull(),
     currentUrl: text("current_url").notNull(),
     previousUrls: text("previous_urls").array(),
-    contentType: contentTypeEnum("content_type").notNull(),
+    contentTypeId: integer("content_type_id")
+      .notNull()
+      .references(() => contentTypes.id),
     publishDate: date("publish_date"),
     description: text("description"),
     author: text("author"),
@@ -169,8 +170,8 @@ export const contentItems = tigerDenSchema.table(
   },
   (table) => ({
     currentUrlIdx: index("content_items_current_url_idx").on(table.currentUrl),
-    contentTypeIdx: index("content_items_content_type_idx").on(
-      table.contentType,
+    contentTypeIdIdx: index("content_items_content_type_id_idx").on(
+      table.contentTypeId,
     ),
     publishDateIdx: index("content_items_publish_date_idx").on(
       table.publishDate,
@@ -248,6 +249,25 @@ export const campaigns = tigerDenSchema.table("campaigns", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Content Types table
+export const contentTypes = tigerDenSchema.table("content_types", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  name: varchar("name", { length: 50 }).notNull(),
+  slug: varchar("slug", { length: 50 }).notNull().unique(),
+  color: varchar("color", { length: 20 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  isSystem: boolean("is_system").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+}, (table) => ({
+  displayOrderIdx: index("content_types_display_order_idx").on(table.displayOrder),
+}));
+
 // Junction table for content items and campaigns
 export const contentCampaigns = tigerDenSchema.table(
   "content_campaigns",
@@ -272,9 +292,17 @@ export const contentItemsRelations = relations(
       fields: [contentItems.createdByUserId],
       references: [users.id],
     }),
+    contentTypeRel: one(contentTypes, {
+      fields: [contentItems.contentTypeId],
+      references: [contentTypes.id],
+    }),
     campaigns: many(contentCampaigns),
   }),
 );
+
+export const contentTypesRelations = relations(contentTypes, ({ many }) => ({
+  contentItems: many(contentItems),
+}));
 
 export const campaignsRelations = relations(campaigns, ({ many }) => ({
   contentItems: many(contentCampaigns),
