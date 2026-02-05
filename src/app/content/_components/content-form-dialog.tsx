@@ -43,14 +43,7 @@ import { CampaignMultiSelect } from "./campaign-multi-select";
 const contentFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   currentUrl: z.string().url("Must be a valid URL"),
-  contentType: z.enum([
-    "youtube_video",
-    "blog_post",
-    "case_study",
-    "website_content",
-    "third_party",
-    "other",
-  ]),
+  contentTypeId: z.number().min(1, "Content type is required"),
   publishDate: z.string().optional(),
   description: z.string().optional(),
   author: z.string().optional(),
@@ -75,6 +68,9 @@ export function ContentFormDialog({
   const utils = api.useUtils();
   const [_date, _setDate] = useState<Date>();
 
+  // Fetch content types
+  const { data: contentTypes } = api.contentTypes.list.useQuery();
+
   // Fetch existing content if editing
   const { data: existingContent } = api.content.getById.useQuery(
     { id: contentId! },
@@ -84,7 +80,7 @@ export function ContentFormDialog({
   const form = useForm<ContentFormValues>({
     resolver: zodResolver(contentFormSchema),
     defaultValues: {
-      contentType: "blog_post",
+      contentTypeId: contentTypes?.[0]?.id ?? 1,
       title: "",
       currentUrl: "",
     },
@@ -96,7 +92,7 @@ export function ContentFormDialog({
       form.reset({
         title: existingContent.title,
         currentUrl: existingContent.currentUrl,
-        contentType: existingContent.contentType,
+        contentTypeId: existingContent.contentTypeId,
         publishDate: existingContent.publishDate ?? undefined,
         description: existingContent.description ?? undefined,
         author: existingContent.author ?? undefined,
@@ -106,12 +102,12 @@ export function ContentFormDialog({
       });
     } else {
       form.reset({
-        contentType: "blog_post",
+        contentTypeId: contentTypes?.[0]?.id ?? 1,
         title: "",
         currentUrl: "",
       });
     }
-  }, [existingContent, form]);
+  }, [existingContent, contentTypes, form]);
 
   const createMutation = api.content.create.useMutation({
     onSuccess: () => {
@@ -215,13 +211,15 @@ export function ContentFormDialog({
 
               <FormField
                 control={form.control}
-                name="contentType"
+                name="contentTypeId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Content Type *</FormLabel>
                     <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
+                      value={field.value?.toString()}
+                      onValueChange={(value) =>
+                        field.onChange(parseInt(value, 10))
+                      }
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -229,16 +227,11 @@ export function ContentFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="youtube_video">
-                          YouTube Video
-                        </SelectItem>
-                        <SelectItem value="blog_post">Blog Post</SelectItem>
-                        <SelectItem value="case_study">Case Study</SelectItem>
-                        <SelectItem value="website_content">
-                          Website Content
-                        </SelectItem>
-                        <SelectItem value="third_party">Third Party</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {contentTypes?.map((type) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

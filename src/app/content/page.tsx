@@ -8,7 +8,7 @@ export default function ContentPage() {
   const [filters, setFilters] = useState({
     search: "",
     searchMode: "metadata" as "metadata" | "keyword" | "fullContent",
-    contentTypes: [] as string[],
+    contentTypeIds: [] as number[],
     campaignIds: [] as string[],
   });
 

@@ -29,25 +29,16 @@ interface ContentFiltersProps {
   filters: {
     search: string;
     searchMode: "metadata" | "keyword" | "fullContent";
-    contentTypes: string[];
+    contentTypeIds: number[];
     campaignIds: string[];
   };
   onFiltersChange: (filters: {
     search: string;
     searchMode: "metadata" | "keyword" | "fullContent";
-    contentTypes: string[];
+    contentTypeIds: number[];
     campaignIds: string[];
   }) => void;
 }
-
-const CONTENT_TYPES = [
-  { value: "youtube_video", label: "YouTube Video" },
-  { value: "blog_post", label: "Blog Post" },
-  { value: "case_study", label: "Case Study" },
-  { value: "website_content", label: "Website Content" },
-  { value: "third_party", label: "Third Party" },
-  { value: "other", label: "Other" },
-] as const;
 
 export function ContentFilters({
   filters,
@@ -57,6 +48,7 @@ export function ContentFilters({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const { data: campaigns } = api.campaigns.list.useQuery();
+  const { data: contentTypes } = api.contentTypes.list.useQuery();
   const utils = api.useUtils();
 
   const deleteAllMutation = api.content.deleteAll.useMutation({
@@ -71,14 +63,14 @@ export function ContentFilters({
 
   const hasActiveFilters =
     filters.search.length > 0 ||
-    filters.contentTypes.length > 0 ||
+    filters.contentTypeIds.length > 0 ||
     filters.campaignIds.length > 0;
 
   const handleClearFilters = () => {
     onFiltersChange({
       search: "",
       searchMode: "metadata",
-      contentTypes: [],
+      contentTypeIds: [],
       campaignIds: [],
     });
   };
@@ -155,19 +147,19 @@ export function ContentFilters({
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                contentTypes: value === "all" ? [] : [value],
+                contentTypeIds: value === "all" ? [] : [parseInt(value, 10)],
               })
             }
-            value={filters.contentTypes[0] ?? "all"}
+            value={filters.contentTypeIds[0]?.toString() ?? "all"}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Content Type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {CONTENT_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
+              {contentTypes?.map((type) => (
+                <SelectItem key={type.id} value={type.id.toString()}>
+                  {type.name}
                 </SelectItem>
               ))}
             </SelectContent>
