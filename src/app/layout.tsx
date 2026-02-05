@@ -49,6 +49,14 @@ export default async function RootLayout({
                     >
                       Queue
                     </Link>
+                    {session.user.role === "admin" && (
+                      <Link
+                        className="font-medium text-sm hover:underline"
+                        href="/admin"
+                      >
+                        Admin
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,6 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import {
+  contributorProcedure,
+  createTRPCRouter,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { campaigns, contentCampaigns } from "~/server/db/schema";
 
 export const campaignsRouter = createTRPCRouter({
@@ -35,7 +39,7 @@ export const campaignsRouter = createTRPCRouter({
       return campaign;
     }),
 
-  create: protectedProcedure
+  create: contributorProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -60,7 +64,7 @@ export const campaignsRouter = createTRPCRouter({
       return newCampaign;
     }),
 
-  update: protectedProcedure
+  update: contributorProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -91,7 +95,7 @@ export const campaignsRouter = createTRPCRouter({
       return updatedCampaign;
     }),
 
-  delete: protectedProcedure
+  delete: contributorProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Check if campaign is in use

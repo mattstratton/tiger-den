@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import {
+  contributorProcedure,
+  createTRPCRouter,
+} from "~/server/api/trpc";
 import { processImportWithProgress } from "~/server/services/csv-processor";
 
 export const csvRouter = createTRPCRouter({
-  import: protectedProcedure
+  import: contributorProcedure
     .input(
       z.object({
         rows: z.array(z.record(z.string(), z.unknown())),

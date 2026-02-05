@@ -23,11 +23,12 @@ declare module "next-auth" {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: env.AUTH_SECRET,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
-  }),
+  }) as any,
   providers: [
     Google({
       clientId: env.GOOGLE_CLIENT_ID,

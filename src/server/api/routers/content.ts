@@ -1,7 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import {
+  contributorProcedure,
+  createTRPCRouter,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import {
   contentCampaigns,
   contentItems,
@@ -98,7 +102,7 @@ export const contentRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: contributorProcedure
     .input(
       z.object({
         title: z.string().min(1),
@@ -163,7 +167,7 @@ export const contentRouter = createTRPCRouter({
       return newItem;
     }),
 
-  update: protectedProcedure
+  update: contributorProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -237,7 +241,7 @@ export const contentRouter = createTRPCRouter({
       return updatedItem;
     }),
 
-  delete: protectedProcedure
+  delete: contributorProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Verify item exists first
@@ -254,7 +258,7 @@ export const contentRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  reindexContent: protectedProcedure
+  reindexContent: contributorProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       // Get content item
@@ -413,7 +417,7 @@ export const contentRouter = createTRPCRouter({
       return item;
     }),
 
-  deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
+  deleteAll: contributorProcedure.mutation(async ({ ctx }) => {
     // Delete all content items (for testing purposes)
     // This will cascade delete all content_campaigns relationships
     await ctx.db.delete(contentItems);

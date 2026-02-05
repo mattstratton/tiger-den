@@ -17,6 +17,19 @@ export const contentTypesRouter = createTRPCRouter({
     });
   }),
 
+  // Get usage count for a content type
+  getUsageCount: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const usageResult = await ctx.db
+        .select({ count: count() })
+        .from(contentItems)
+        .where(eq(contentItems.contentTypeId, input.id))
+        .execute();
+
+      return { count: usageResult[0]?.count ?? 0 };
+    }),
+
   // Create new content type
   create: adminProcedure
     .input(
@@ -29,15 +42,23 @@ export const contentTypesRouter = createTRPCRouter({
           .regex(/^[a-z0-9_]+$/, "Slug must be lowercase with underscores only"),
         color: z.enum([
           "red",
-          "blue",
-          "green",
-          "purple",
-          "yellow",
           "orange",
-          "pink",
+          "amber",
+          "yellow",
+          "lime",
+          "green",
+          "emerald",
+          "teal",
           "cyan",
-          "gray",
+          "sky",
+          "blue",
           "indigo",
+          "violet",
+          "purple",
+          "fuchsia",
+          "pink",
+          "rose",
+          "gray",
         ]),
       }),
     )
@@ -85,15 +106,23 @@ export const contentTypesRouter = createTRPCRouter({
           .regex(/^[a-z0-9_]+$/, "Slug must be lowercase with underscores only"),
         color: z.enum([
           "red",
-          "blue",
-          "green",
-          "purple",
-          "yellow",
           "orange",
-          "pink",
+          "amber",
+          "yellow",
+          "lime",
+          "green",
+          "emerald",
+          "teal",
           "cyan",
-          "gray",
+          "sky",
+          "blue",
           "indigo",
+          "violet",
+          "purple",
+          "fuchsia",
+          "pink",
+          "rose",
+          "gray",
         ]),
       }),
     )
