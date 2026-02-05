@@ -17,6 +17,7 @@ interface DeleteContentDialogProps {
   onOpenChange: (open: boolean) => void;
   contentId: string;
   contentTitle: string;
+  onSuccess?: () => void;
 }
 
 export function DeleteContentDialog({
@@ -24,6 +25,7 @@ export function DeleteContentDialog({
   onOpenChange,
   contentId,
   contentTitle,
+  onSuccess,
 }: DeleteContentDialogProps) {
   const utils = api.useUtils();
 
@@ -31,6 +33,7 @@ export function DeleteContentDialog({
     onSuccess: () => {
       void utils.content.list.invalidate();
       onOpenChange(false);
+      onSuccess?.();
     },
     onError: (error) => {
       console.error("Failed to delete content:", error);

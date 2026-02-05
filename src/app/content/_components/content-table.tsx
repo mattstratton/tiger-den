@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -201,15 +202,23 @@ export function ContentTable({ filters }: ContentTableProps) {
               <TableRow key={item.id}>
                 <TableCell>
                   <div className="flex flex-col gap-1">
-                    <a
-                      className="flex items-center gap-2 hover:underline"
-                      href={item.currentUrl}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      {item.title}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        className="hover:underline"
+                        href={`/content/${item.id}`}
+                      >
+                        {item.title}
+                      </Link>
+                      <a
+                        className="text-muted-foreground hover:text-foreground"
+                        href={item.currentUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        title="Open external link"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
                     {useAdvancedSearch && item.matchedText && (
                       <div className="max-w-md text-muted-foreground text-sm">
                         ...{item.matchedText.substring(0, 150)}...
