@@ -25,7 +25,7 @@ interface ContentTableProps {
   filters: {
     search: string;
     searchMode: "metadata" | "keyword" | "fullContent";
-    contentTypes: string[];
+    contentTypeIds: number[];
     campaignIds: string[];
   };
 }
@@ -62,17 +62,8 @@ export function ContentTable({ filters }: ContentTableProps) {
   const { data: listData, isLoading: listLoading } = api.content.list.useQuery(
     {
       search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
-      contentTypes:
-        filters.contentTypes.length > 0
-          ? (filters.contentTypes as (
-              | "youtube_video"
-              | "blog_post"
-              | "case_study"
-              | "website_content"
-              | "third_party"
-              | "other"
-            )[])
-          : undefined,
+      contentTypeIds:
+        filters.contentTypeIds.length > 0 ? filters.contentTypeIds : undefined,
       campaignIds:
         filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
       limit: pageSize,
@@ -227,7 +218,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <ContentTypeBadge type={item.contentType} />
+                  <ContentTypeBadge type={item.contentTypeRel} />
                 </TableCell>
                 <TableCell>
                   {item.publishDate

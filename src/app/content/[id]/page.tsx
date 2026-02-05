@@ -146,7 +146,7 @@ export default async function ContentDetailPage(props: PageProps) {
             <CardContent className="space-y-4">
               <div>
                 <div className="mb-1 font-medium text-sm">Type</div>
-                <ContentTypeBadge type={content.contentType} />
+                <ContentTypeBadge type={content.contentTypeRel} />
               </div>
 
               {content.publishDate && (

@@ -6,7 +6,7 @@ import { fetchPageTitle } from "~/server/services/title-fetcher";
 import { parseFlexibleDate } from "~/server/utils/date-parser";
 import { indexContent } from "./indexing-orchestrator";
 
-const { contentItems, contentCampaigns, campaigns } = schema;
+const { contentItems, contentCampaigns, campaigns, contentTypes } = schema;
 
 // CSV row schema with snake_case column names
 const csvRowSchema = z.object({
@@ -78,6 +78,17 @@ export async function processImportWithProgress(
   const errors: ImportError[] = [];
   const processedUrls = new Set<string>();
   const successfulInserts: Array<{ id: string; currentUrl: string }> = [];
+
+  // Fetch all content types and create slug-to-ID mapping
+  const allContentTypes = await db.query.contentTypes.findMany();
+  const contentTypeMap = new Map(
+    allContentTypes.map((ct) => [ct.slug, ct.id]),
+  );
+  const otherTypeId = allContentTypes.find((ct) => ct.isSystem)?.id;
+
+  if (!otherTypeId) {
+    throw new Error("System 'Other' content type not found");
+  }
 
   // Enrich blank titles by fetching from URLs
   const enrichmentStats: EnrichmentStats = {
@@ -205,13 +216,17 @@ export async function processImportWithProgress(
           }
         }
 
+        // Map content type slug to ID
+        const contentTypeId =
+          contentTypeMap.get(validatedRow.content_type) ?? otherTypeId;
+
         // Create content item
         const [item] = await tx
           .insert(contentItems)
           .values({
             title: validatedRow.title || validatedRow.current_url,
             currentUrl: validatedRow.current_url,
-            contentType: validatedRow.content_type,
+            contentTypeId,
             publishDate: validatedRow.publish_date,
             description: validatedRow.description,
             author: validatedRow.author,

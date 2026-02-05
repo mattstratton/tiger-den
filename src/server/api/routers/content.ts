@@ -17,18 +17,7 @@ export const contentRouter = createTRPCRouter({
     .input(
       z.object({
         search: z.string().optional(),
-        contentTypes: z
-          .array(
-            z.enum([
-              "youtube_video",
-              "blog_post",
-              "case_study",
-              "website_content",
-              "third_party",
-              "other",
-            ]),
-          )
-          .optional(),
+        contentTypeIds: z.array(z.number()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
         publishDateFrom: z.string().optional(),
         publishDateTo: z.string().optional(),
@@ -51,8 +40,8 @@ export const contentRouter = createTRPCRouter({
       }
 
       // Content type filter
-      if (input.contentTypes && input.contentTypes.length > 0) {
-        conditions.push(inArray(contentItems.contentType, input.contentTypes));
+      if (input.contentTypeIds && input.contentTypeIds.length > 0) {
+        conditions.push(inArray(contentItems.contentTypeId, input.contentTypeIds));
       }
 
       // Date range filter
@@ -85,6 +74,7 @@ export const contentRouter = createTRPCRouter({
         offset: input.offset,
         orderBy: (contentItems, { desc }) => [desc(contentItems.createdAt)],
         with: {
+          contentTypeRel: true,
           campaigns: {
             with: {
               campaign: true,
@@ -113,14 +103,7 @@ export const contentRouter = createTRPCRouter({
       z.object({
         title: z.string().min(1),
         currentUrl: z.string().url(),
-        contentType: z.enum([
-          "youtube_video",
-          "blog_post",
-          "case_study",
-          "website_content",
-          "third_party",
-          "other",
-        ]),
+        contentTypeId: z.number(),
         publishDate: z.string().optional(),
         description: z.string().optional(),
         author: z.string().optional(),
@@ -186,16 +169,7 @@ export const contentRouter = createTRPCRouter({
         id: z.string().uuid(),
         title: z.string().min(1).optional(),
         currentUrl: z.string().url().optional(),
-        contentType: z
-          .enum([
-            "youtube_video",
-            "blog_post",
-            "case_study",
-            "website_content",
-            "third_party",
-            "other",
-          ])
-          .optional(),
+        contentTypeId: z.number().optional(),
         publishDate: z.string().optional(),
         description: z.string().optional(),
         author: z.string().optional(),
@@ -356,6 +330,7 @@ export const contentRouter = createTRPCRouter({
       const contentItemsData = await ctx.db.query.contentItems.findMany({
         where: inArray(contentItems.id, contentItemIds),
         with: {
+          contentTypeRel: true,
           campaigns: {
             with: {
               campaign: true,
@@ -395,6 +370,7 @@ export const contentRouter = createTRPCRouter({
       const contentItemsData = await ctx.db.query.contentItems.findMany({
         where: inArray(contentItems.id, contentItemIds),
         with: {
+          contentTypeRel: true,
           campaigns: {
             with: {
               campaign: true,
@@ -421,6 +397,7 @@ export const contentRouter = createTRPCRouter({
       const item = await ctx.db.query.contentItems.findFirst({
         where: eq(contentItems.id, input.id),
         with: {
+          contentTypeRel: true,
           campaigns: {
             with: {
               campaign: true,
