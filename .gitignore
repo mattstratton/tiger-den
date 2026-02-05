@@ -48,3 +48,6 @@ yarn-error.log*
 # worktrees
 .worktrees/
 worktrees/
+
+# claude code local settings
+.claude/
