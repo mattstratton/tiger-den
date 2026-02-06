@@ -39,6 +39,12 @@ export default async function AdminLayout({
           >
             Queue
           </Link>
+          <Link
+            className="border-b-2 border-transparent pb-2 hover:border-gray-300"
+            href="/admin/api-import"
+          >
+            API Import
+          </Link>
         </nav>
       </div>
 

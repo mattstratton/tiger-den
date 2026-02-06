@@ -78,7 +78,7 @@ async function testAPIs() {
           console.log(`  Sub Section: ${page.fields.subSection || "N/A"}`);
           console.log(`  Meta Title: ${page.fields.metaTitle || "N/A"}`);
           console.log(`  Meta Description: ${page.fields.metaDescription || "N/A"}`);
-          console.log(`  Published: ${page.sys.publishedAt || "N/A"}`);
+          console.log(`  Published: ${(page.sys as unknown as Record<string, unknown>).publishedAt || "N/A"}`);
           console.log(`  Updated: ${page.sys.updatedAt}`);
           console.log(`  Content type: ${typeof page.fields.content}`);
 
@@ -99,8 +99,8 @@ async function testAPIs() {
           console.log(`  Slug: ${study.fields.slug}`);
           console.log(`  External Link: ${study.fields.externalLink || "N/A"}`);
           console.log(`  Category: ${study.fields.category || "N/A"}`);
-          console.log(`  Overview: ${study.fields.overview?.substring(0, 100) || "N/A"}...`);
-          console.log(`  Published: ${study.sys.publishedAt || "N/A"}`);
+          console.log(`  Overview: ${String(study.fields.overview ?? "").substring(0, 100) || "N/A"}...`);
+          console.log(`  Published: ${(study.sys as unknown as Record<string, unknown>).publishedAt || "N/A"}`);
           console.log(`  Updated: ${study.sys.updatedAt}`);
           console.log(`  Content type: ${typeof study.fields.content}`);
 

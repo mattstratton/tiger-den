@@ -1,3 +1,4 @@
+import { apiImportRouter } from "~/server/api/routers/api-import";
 import { campaignsRouter } from "~/server/api/routers/campaigns";
 import { contentRouter } from "~/server/api/routers/content";
 import { contentTypesRouter } from "~/server/api/routers/contentTypes";
@@ -28,6 +29,7 @@ export const appRouter = createTRPCRouter({
   queue: queueRouter,
   contentTypes: contentTypesRouter,
   users: usersRouter,
+  apiImport: apiImportRouter,
 });
 
 // export type definition of API

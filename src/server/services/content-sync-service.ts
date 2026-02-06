@@ -20,6 +20,13 @@ export interface SyncResult {
   errors: Array<{ item: string; error: string }>;
 }
 
+export interface PreviewResult {
+  newItems: number;
+  updatable: number;
+  skipped: number;
+  details: Array<{ title: string; url: string; status: "new" | "update" | "skip" }>;
+}
+
 export class ContentSyncService {
   // System user ID for API imports when no user is specified
   private readonly SYSTEM_USER_ID = "system-api-import";
@@ -199,7 +206,7 @@ export class ContentSyncService {
       } catch (error) {
         result.failed++;
         result.errors.push({
-          item: `Learn page: ${page.fields.title}`,
+          item: `Learn page: ${String(page.fields.title)}`,
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
@@ -216,7 +223,7 @@ export class ContentSyncService {
     result: SyncResult,
   ): Promise<void> {
     // Normalize URL (add https://www.timescale.com/ prefix if needed)
-    const normalizedUrl = this.normalizeContentfulUrl(page.fields.url);
+    const normalizedUrl = this.normalizeContentfulUrl(String(page.fields.url));
 
     // Find existing content by Contentful ID or URL
     const existing = await db.query.contentItems.findFirst({
@@ -265,21 +272,17 @@ export class ContentSyncService {
     // Collect tags from section and subSection
     const tagNames: string[] = [];
     if (page.fields.section) {
-      tagNames.push(
-        typeof page.fields.section === "string"
-          ? page.fields.section
-          : page.fields.section.toString(),
-      );
+      tagNames.push(String(page.fields.section));
     }
     if (page.fields.subSection) {
-      tagNames.push(page.fields.subSection);
+      tagNames.push(String(page.fields.subSection));
     }
 
     await db.insert(contentItems).values({
-      title: page.fields.title,
+      title: String(page.fields.title),
       currentUrl: normalizedUrl,
       contentTypeId,
-      description: page.fields.metaDescription || undefined,
+      description: page.fields.metaDescription ? String(page.fields.metaDescription) : undefined,
       tags: tagNames,
       source: "contentful_api",
       contentfulId: page.sys.id,
@@ -311,23 +314,19 @@ export class ContentSyncService {
     // Collect tags from section and subSection
     const tagNames: string[] = [];
     if (page.fields.section) {
-      tagNames.push(
-        typeof page.fields.section === "string"
-          ? page.fields.section
-          : page.fields.section.toString(),
-      );
+      tagNames.push(String(page.fields.section));
     }
     if (page.fields.subSection) {
-      tagNames.push(page.fields.subSection);
+      tagNames.push(String(page.fields.subSection));
     }
 
     // Update the record
     await db
       .update(contentItems)
       .set({
-        title: page.fields.title,
+        title: String(page.fields.title),
         currentUrl: normalizedUrl,
-        description: page.fields.metaDescription || undefined,
+        description: page.fields.metaDescription ? String(page.fields.metaDescription) : undefined,
         tags: tagNames,
         contentfulId: page.sys.id,
         lastModifiedAt: new Date(page.sys.updatedAt),
@@ -354,7 +353,7 @@ export class ContentSyncService {
       } catch (error) {
         result.failed++;
         result.errors.push({
-          item: `Case study: ${study.fields.name}`,
+          item: `Case study: ${String(study.fields.name)}`,
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
@@ -371,9 +370,10 @@ export class ContentSyncService {
     result: SyncResult,
   ): Promise<void> {
     // Use externalLink if available, otherwise construct URL from slug
-    const normalizedUrl = study.fields.externalLink
-      ? study.fields.externalLink
-      : this.normalizeContentfulUrl(`customers/${study.fields.slug}`);
+    const externalLink = study.fields.externalLink ? String(study.fields.externalLink) : null;
+    const normalizedUrl = externalLink
+      ? externalLink
+      : this.normalizeContentfulUrl(`customers/${String(study.fields.slug)}`);
 
     // Find existing content by Contentful ID or URL
     const existing = await db.query.contentItems.findFirst({
@@ -419,13 +419,18 @@ export class ContentSyncService {
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("case_study");
 
+    const description = study.fields.overview
+      ? String(study.fields.overview)
+      : study.fields.metaDescription
+        ? String(study.fields.metaDescription)
+        : undefined;
+
     await db.insert(contentItems).values({
-      title: study.fields.name,
+      title: String(study.fields.name),
       currentUrl: normalizedUrl,
       contentTypeId,
-      description:
-        study.fields.overview || study.fields.metaDescription || undefined,
-      tags: study.fields.category ? [study.fields.category] : [],
+      description,
+      tags: study.fields.category ? [String(study.fields.category)] : [],
       source: "contentful_api",
       contentfulId: study.sys.id,
       lastModifiedAt: new Date(study.sys.updatedAt),
@@ -453,20 +458,150 @@ export class ContentSyncService {
       ? [...(existing.previousUrls || []), existing.currentUrl]
       : existing.previousUrls;
 
+    const description = study.fields.overview
+      ? String(study.fields.overview)
+      : study.fields.metaDescription
+        ? String(study.fields.metaDescription)
+        : undefined;
+
     // Update the record
     await db
       .update(contentItems)
       .set({
-        title: study.fields.name,
+        title: String(study.fields.name),
         currentUrl: normalizedUrl,
-        description:
-          study.fields.overview || study.fields.metaDescription || undefined,
-        tags: study.fields.category ? [study.fields.category] : [],
+        description,
+        tags: study.fields.category ? [String(study.fields.category)] : [],
         contentfulId: study.sys.id,
         lastModifiedAt: new Date(study.sys.updatedAt),
         ...(urlChanged && { previousUrls }),
       })
       .where(eq(contentItems.id, itemId));
+  }
+
+  /**
+   * Preview Ghost posts (read-only matching, no INSERT/UPDATE)
+   */
+  async previewGhostPosts(posts: GhostPost[]): Promise<PreviewResult> {
+    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+
+    for (const post of posts) {
+      const normalizedUrl = this.normalizeGhostUrl(post.url);
+      const [existing] = await db
+        .select()
+        .from(contentItems)
+        .where(
+          or(
+            eq(contentItems.ghostId, post.id),
+            eq(contentItems.currentUrl, normalizedUrl),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        if (!this.shouldUpdate(existing.source, "ghost_api")) {
+          result.skipped++;
+          result.details.push({ title: post.title, url: normalizedUrl, status: "skip" });
+        } else {
+          const lastModified = new Date(post.updated_at);
+          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+            result.skipped++;
+            result.details.push({ title: post.title, url: normalizedUrl, status: "skip" });
+          } else {
+            result.updatable++;
+            result.details.push({ title: post.title, url: normalizedUrl, status: "update" });
+          }
+        }
+      } else {
+        result.newItems++;
+        result.details.push({ title: post.title, url: normalizedUrl, status: "new" });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Preview Contentful learn pages (read-only matching, no INSERT/UPDATE)
+   */
+  async previewLearnPages(pages: LearnPageEntry[]): Promise<PreviewResult> {
+    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+
+    for (const page of pages) {
+      const title = String(page.fields.title);
+      const normalizedUrl = this.normalizeContentfulUrl(String(page.fields.url));
+      const existing = await db.query.contentItems.findFirst({
+        where: or(
+          eq(contentItems.contentfulId, page.sys.id),
+          eq(contentItems.currentUrl, normalizedUrl),
+        ),
+      });
+
+      if (existing) {
+        if (!this.shouldUpdate(existing.source, "contentful_api")) {
+          result.skipped++;
+          result.details.push({ title, url: normalizedUrl, status: "skip" });
+        } else {
+          const lastModified = new Date(page.sys.updatedAt);
+          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+            result.skipped++;
+            result.details.push({ title, url: normalizedUrl, status: "skip" });
+          } else {
+            result.updatable++;
+            result.details.push({ title, url: normalizedUrl, status: "update" });
+          }
+        }
+      } else {
+        result.newItems++;
+        result.details.push({ title, url: normalizedUrl, status: "new" });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Preview Contentful case studies (read-only matching, no INSERT/UPDATE)
+   */
+  async previewCaseStudies(studies: CaseStudyEntry[]): Promise<PreviewResult> {
+    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+
+    for (const study of studies) {
+      const title = String(study.fields.name);
+      const externalLink = study.fields.externalLink ? String(study.fields.externalLink) : undefined;
+      const slug = String(study.fields.slug);
+      const normalizedUrl = externalLink
+        ? externalLink
+        : this.normalizeContentfulUrl(`customers/${slug}`);
+
+      const existing = await db.query.contentItems.findFirst({
+        where: or(
+          eq(contentItems.contentfulId, study.sys.id),
+          eq(contentItems.currentUrl, normalizedUrl),
+        ),
+      });
+
+      if (existing) {
+        if (!this.shouldUpdate(existing.source, "contentful_api")) {
+          result.skipped++;
+          result.details.push({ title, url: normalizedUrl, status: "skip" });
+        } else {
+          const lastModified = new Date(study.sys.updatedAt);
+          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+            result.skipped++;
+            result.details.push({ title, url: normalizedUrl, status: "skip" });
+          } else {
+            result.updatable++;
+            result.details.push({ title, url: normalizedUrl, status: "update" });
+          }
+        }
+      } else {
+        result.newItems++;
+        result.details.push({ title, url: normalizedUrl, status: "new" });
+      }
+    }
+
+    return result;
   }
 
   /**
