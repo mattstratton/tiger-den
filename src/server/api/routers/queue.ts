@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, adminProcedure, protectedProcedure } from "~/server/api/trpc";
 import { db } from "~/server/db";
 import { contentItems, contentText } from "~/server/db/schema";
 import { getQueue } from "~/server/queue/indexing-queue";
+import { indexContent } from "~/server/services/indexing-orchestrator";
 
 export const queueRouter = createTRPCRouter({
   /**
@@ -25,12 +26,34 @@ export const queueRouter = createTRPCRouter({
       where: eq(contentText.indexStatus, "pending"),
     });
 
+    // Get count of content items with no content_text row (never indexed)
+    const notIndexedResult = await db.execute(sql`
+      SELECT COUNT(*) as count FROM tiger_den.content_items ci
+      WHERE NOT EXISTS (
+        SELECT 1 FROM tiger_den.content_text ct WHERE ct.content_item_id = ci.id
+      )
+    `);
+    const notIndexed = Number((notIndexedResult as unknown as Array<{ count: string }>)[0]?.count ?? 0);
+
+    // Get count of indexed items
+    const indexedItems = await db.query.contentText.findMany({
+      where: eq(contentText.indexStatus, "indexed"),
+    });
+
+    // Get count of failed items in content_text
+    const failedItems = await db.query.contentText.findMany({
+      where: eq(contentText.indexStatus, "failed"),
+    });
+
     return {
       queued: created,
       processing: active,
       completed: completed - active,
       failed,
       pending: pendingItems.length,
+      notIndexed,
+      indexed: indexedItems.length,
+      failedIndexing: failedItems.length,
     };
   }),
 
@@ -133,6 +156,67 @@ export const queueRouter = createTRPCRouter({
     return {
       success: true,
       message: "Failed jobs retry initiated (limited implementation)",
+    };
+  }),
+
+  /**
+   * Re-index all content items that have no content_text row or failed indexing
+   */
+  reindexAll: adminProcedure.mutation(async () => {
+    // Find content items with no content_text row
+    const notIndexedItems = await db.execute(sql`
+      SELECT ci.id, ci.current_url FROM tiger_den.content_items ci
+      WHERE NOT EXISTS (
+        SELECT 1 FROM tiger_den.content_text ct WHERE ct.content_item_id = ci.id
+      )
+    `);
+
+    // Find content items with failed indexing
+    const failedItems = await db.query.contentText.findMany({
+      where: eq(contentText.indexStatus, "failed"),
+      with: { contentItem: true },
+    });
+
+    // Build list of items to index
+    const items: Array<{ id: string; url: string }> = [];
+
+    for (const row of notIndexedItems as unknown as Array<{ id: string; current_url: string }>) {
+      items.push({ id: row.id, url: row.current_url });
+    }
+
+    for (const item of failedItems) {
+      if (item.contentItem?.currentUrl) {
+        // Delete the failed content_text row so indexSingleItem can create a fresh one
+        await db.delete(contentText).where(eq(contentText.id, item.id));
+        items.push({ id: item.contentItemId, url: item.contentItem.currentUrl });
+      }
+    }
+
+    if (items.length === 0) {
+      return {
+        success: true,
+        message: "All content items are already indexed",
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        queued: 0,
+      };
+    }
+
+    console.log(`[reindexAll] Indexing ${items.length} items...`);
+    const result = await indexContent(items);
+    console.log(`[reindexAll] Complete: ${result.succeeded} succeeded, ${result.failed} failed, ${result.queued} queued`);
+
+    return {
+      success: true,
+      message: `Indexed ${result.succeeded} items, ${result.failed} failed, ${result.queued} queued`,
+      total: result.total,
+      succeeded: result.succeeded,
+      failed: result.failed,
+      queued: result.queued,
+      errors: result.results
+        .filter((r) => !r.success && r.error)
+        .map((r) => `${r.contentItemId}: ${r.error}`),
     };
   }),
 });
