@@ -24,6 +24,15 @@ export const env = createEnv({
     INDEXING_TIMEOUT_MS: z.string().optional(),
     ENABLE_CONTENT_INDEXING: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(), // Only needed for Full Content (AI) search
+    // API integrations
+    GHOST_API_URL: z.string().url().optional(),
+    GHOST_CONTENT_API_KEY: z.string().optional(),
+    CONTENTFUL_SPACE_ID: z.string().optional(),
+    CONTENTFUL_ACCESS_TOKEN: z.string().optional(),
+    CONTENTFUL_ENVIRONMENT: z.string().optional(),
+    API_IMPORT_BATCH_SIZE: z.string().optional(),
+    API_IMPORT_DELAY_MS: z.string().optional(),
+    API_IMPORT_CHUNK_DELAY_MS: z.string().optional(),
   },
 
   /**
@@ -51,6 +60,14 @@ export const env = createEnv({
     INDEXING_TIMEOUT_MS: process.env.INDEXING_TIMEOUT_MS,
     ENABLE_CONTENT_INDEXING: process.env.ENABLE_CONTENT_INDEXING,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GHOST_API_URL: process.env.GHOST_API_URL,
+    GHOST_CONTENT_API_KEY: process.env.GHOST_CONTENT_API_KEY,
+    CONTENTFUL_SPACE_ID: process.env.CONTENTFUL_SPACE_ID,
+    CONTENTFUL_ACCESS_TOKEN: process.env.CONTENTFUL_ACCESS_TOKEN,
+    CONTENTFUL_ENVIRONMENT: process.env.CONTENTFUL_ENVIRONMENT,
+    API_IMPORT_BATCH_SIZE: process.env.API_IMPORT_BATCH_SIZE,
+    API_IMPORT_DELAY_MS: process.env.API_IMPORT_DELAY_MS,
+    API_IMPORT_CHUNK_DELAY_MS: process.env.API_IMPORT_CHUNK_DELAY_MS,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -5,6 +5,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgSchema,
   primaryKey,
   text,
@@ -50,6 +51,8 @@ export const sourceEnum = tigerDenSchema.enum("source", [
   "csv_import",
   "cms_api",
   "asana_webhook",
+  "ghost_api",
+  "contentful_api",
 ]);
 
 export const indexStatusEnum = tigerDenSchema.enum("index_status", [
@@ -177,6 +180,9 @@ export const contentItems = tigerDenSchema.table(
       .defaultNow()
       .notNull()
       .$onUpdate(() => new Date()),
+    lastModifiedAt: timestamp("last_modified_at", { withTimezone: true }),
+    ghostId: text("ghost_id"),
+    contentfulId: text("contentful_id"),
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -193,6 +199,13 @@ export const contentItems = tigerDenSchema.table(
       table.publishDate,
     ),
     createdAtIdx: index("content_items_created_at_idx").on(table.createdAt),
+    ghostIdIdx: index("content_items_ghost_id_idx").on(table.ghostId),
+    contentfulIdIdx: index("content_items_contentful_id_idx").on(
+      table.contentfulId,
+    ),
+    lastModifiedAtIdx: index("content_items_last_modified_at_idx").on(
+      table.lastModifiedAt,
+    ),
   }),
 );
 
@@ -254,6 +267,33 @@ export const contentChunks = tigerDenSchema.table(
       table.chunkIndex,
     ),
     textIdIdx: index("content_chunks_text_id_idx").on(table.contentTextId),
+  }),
+);
+
+// API Import Logs table - tracks import history and operations
+export const apiImportLogs = tigerDenSchema.table(
+  "api_import_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourceType: text("source_type").notNull(), // 'ghost', 'contentful_learn', 'contentful_case_study'
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    totalItems: integer("total_items").notNull(),
+    createdCount: integer("created_count").default(0),
+    updatedCount: integer("updated_count").default(0),
+    skippedCount: integer("skipped_count").default(0),
+    failedCount: integer("failed_count").default(0),
+    errorDetails: jsonb("error_details"),
+    dryRun: boolean("dry_run").default(false),
+    initiatedByUserId: text("initiated_by_user_id").references(() => users.id),
+  },
+  (table) => ({
+    startedAtIdx: index("api_import_logs_started_at_idx").on(table.startedAt),
+    sourceTypeIdx: index("api_import_logs_source_type_idx").on(
+      table.sourceType,
+    ),
   }),
 );
 
