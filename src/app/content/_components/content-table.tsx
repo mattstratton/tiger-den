@@ -215,7 +215,7 @@ export function ContentTable({ filters }: ContentTableProps) {
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>
+                <TableCell className="max-w-md">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Link
@@ -231,11 +231,11 @@ export function ContentTable({ filters }: ContentTableProps) {
                         target="_blank"
                         title="Open external link"
                       >
-                        <ExternalLink className="h-3 w-3" />
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
                       </a>
                     </div>
                     {useAdvancedSearch && item.matchedText && (
-                      <div className="flex max-w-2xl flex-col gap-1.5">
+                      <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
                           {item.matchType && (
                             <MatchTypeBadge type={item.matchType} />

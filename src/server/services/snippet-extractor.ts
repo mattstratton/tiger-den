@@ -15,7 +15,7 @@ export interface SnippetResult {
 export function extractSmartSnippet(
   chunkText: string,
   searchQuery: string,
-  maxLength: number = 350,
+  maxLength: number = 200,
 ): SnippetResult {
   // 1. Parse search query into individual terms
   const queryTerms = searchQuery
@@ -46,8 +46,8 @@ export function extractSmartSnippet(
   }
 
   // 4. Extract context around first match (centering the match)
-  // Show ~100 chars before and ~250 chars after
-  const start = Math.max(0, firstMatchPos - 100);
+  // Show ~60 chars before and ~140 chars after
+  const start = Math.max(0, firstMatchPos - 60);
   const end = Math.min(chunkText.length, start + maxLength);
   let snippet = chunkText.substring(start, end);
 
