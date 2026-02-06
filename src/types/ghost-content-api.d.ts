@@ -35,12 +35,25 @@ declare module "@tryghost/content-api" {
     include?: string | string[];
   }
 
+  interface PostsResponse extends Array<PostOrPage> {
+    meta: {
+      pagination: {
+        page: number;
+        limit: number;
+        pages: number;
+        total: number;
+        next: number | null;
+        prev: number | null;
+      };
+    };
+  }
+
   interface Posts {
     read(
       options: { slug: string } | { id: string },
       queryOptions?: ReadOptions,
     ): Promise<PostOrPage>;
-    browse(options?: BrowseOptions): Promise<PostOrPage[]>;
+    browse(options?: BrowseOptions): Promise<PostsResponse>;
   }
 
   class GhostContentAPI {

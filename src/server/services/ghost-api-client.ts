@@ -140,7 +140,15 @@ class GhostAPIClient {
       include: ["tags", "authors"],
     });
 
-    return response as unknown as GhostPostsResponse;
+    // Ghost SDK returns array with meta property attached
+    // Transform to our expected format
+    const posts = response as unknown as GhostPost[];
+    const meta = (response as any).meta;
+
+    return {
+      posts,
+      meta,
+    };
   }
 
   /**

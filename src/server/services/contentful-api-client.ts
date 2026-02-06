@@ -15,12 +15,13 @@ import { apiConfig } from "~/server/config/api-config";
 export interface LearnPageSkeleton extends EntrySkeletonType {
   contentTypeId: "learnPage";
   fields: {
-    Title: string;
-    Url: string;
-    Content: any; // RichText document
-    "Meta Title"?: string;
-    "Meta Description"?: string;
-    Section?: string;
+    title: string;
+    url: string;
+    content: any; // RichText document
+    metaTitle?: string;
+    metaDescription?: string;
+    section?: string;
+    subSection?: string;
   };
 }
 
