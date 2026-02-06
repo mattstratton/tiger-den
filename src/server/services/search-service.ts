@@ -1,13 +1,16 @@
 import { sql } from "drizzle-orm";
 import { indexingConfig } from "~/server/config/indexing-config";
 import { db } from "~/server/db";
+import { extractSmartSnippet } from "./snippet-extractor";
 
 export interface SearchResult {
   contentItemId: string;
   chunkId: string;
   chunkText: string;
+  snippet: string;
   relevanceScore: number;
-  matchType: "hybrid";
+  matchType: "keyword" | "semantic" | "both";
+  matchedTerms: string[];
 }
 
 interface QueryRow {
@@ -24,17 +27,23 @@ interface QueryRow {
 function rrfFusion(
   keywordResults: QueryRow[],
   semanticResults: QueryRow[],
+  searchQuery: string,
   k: number = indexingConfig.rrfK,
   limit: number = 10,
 ): SearchResult[] {
   const scores = new Map<string, number>();
   const dataMap = new Map<string, QueryRow>();
 
+  // Track which chunks appeared in which source
+  const keywordChunks = new Set<string>();
+  const semanticChunks = new Set<string>();
+
   // Keyword rankings
   keywordResults.forEach((row, i) => {
     const key = row.chunk_id;
     scores.set(key, (scores.get(key) ?? 0) + 1 / (k + i + 1));
     dataMap.set(key, row);
+    keywordChunks.add(key);
   });
 
   // Semantic rankings
@@ -42,6 +51,7 @@ function rrfFusion(
     const key = row.chunk_id;
     scores.set(key, (scores.get(key) ?? 0) + 1 / (k + i + 1));
     dataMap.set(key, row);
+    semanticChunks.add(key);
   });
 
   // Sort and return top results
@@ -50,12 +60,27 @@ function rrfFusion(
     .slice(0, limit)
     .map(([chunkId, score]) => {
       const data = dataMap.get(chunkId)!;
+
+      // Determine match type
+      const inKeyword = keywordChunks.has(chunkId);
+      const inSemantic = semanticChunks.has(chunkId);
+      const matchType = inKeyword && inSemantic ? "both" :
+                        inKeyword ? "keyword" : "semantic";
+
+      // Extract smart snippet
+      const { snippet, matchedTerms } = extractSmartSnippet(
+        data.chunk_text,
+        searchQuery,
+      );
+
       return {
         contentItemId: data.content_item_id,
         chunkId,
         chunkText: data.chunk_text,
+        snippet,
         relevanceScore: score,
-        matchType: "hybrid",
+        matchType,
+        matchedTerms,
       };
     });
 }
@@ -107,6 +132,7 @@ export async function hybridSearch(
   return rrfFusion(
     keywordResults as unknown as QueryRow[],
     semanticResults as unknown as QueryRow[],
+    query,
     indexingConfig.rrfK,
     limit,
   );

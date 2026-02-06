@@ -346,8 +346,15 @@ export const contentRouter = createTRPCRouter({
       // Create a map for quick lookup
       const contentMap = new Map(contentItemsData.map((item) => [item.id, item]));
 
+      // Normalize relevance scores to 0-100 scale (top result = 100%)
+      const maxScore = Math.max(...searchResults.map((r) => r.relevanceScore));
+      const normalizedResults = searchResults.map((result) => ({
+        ...result,
+        relevanceScore: maxScore > 0 ? (result.relevanceScore / maxScore) : 0,
+      }));
+
       // Combine search results with content details
-      return searchResults.map((result) => ({
+      return normalizedResults.map((result) => ({
         ...result,
         contentItem: contentMap.get(result.contentItemId) ?? null,
       }));
@@ -388,8 +395,15 @@ export const contentRouter = createTRPCRouter({
         contentItemsData.map((item) => [item.id, item]),
       );
 
+      // Normalize relevance scores to 0-100 scale (top result = 100%)
+      const maxScore = Math.max(...searchResults.map((r) => r.relevanceScore));
+      const normalizedResults = searchResults.map((result) => ({
+        ...result,
+        relevanceScore: maxScore > 0 ? (result.relevanceScore / maxScore) : 0,
+      }));
+
       // Combine search results with content details
-      return searchResults.map((result) => ({
+      return normalizedResults.map((result) => ({
         ...result,
         contentItem: contentMap.get(result.contentItemId) ?? null,
       }));

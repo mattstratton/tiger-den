@@ -20,6 +20,8 @@ import { ContentFormDialog } from "./content-form-dialog";
 import { ContentIndexStatus } from "./content-index-status";
 import { DeleteContentDialog } from "./delete-content-dialog";
 import { ReindexButton } from "./reindex-button";
+import { MatchTypeBadge } from "./match-type-badge";
+import { HighlightedSnippet } from "./highlighted-snippet";
 
 interface ContentTableProps {
   filters: {
@@ -114,6 +116,8 @@ export function ContentTable({ filters }: ContentTableProps) {
   type ItemWithSearch = NonNullable<typeof listData>["items"][number] & {
     relevanceScore?: number;
     matchedText?: string;
+    matchType?: "keyword" | "semantic" | "both";
+    matchedTerms?: string[];
   };
 
   const searchData = useHybridSearch
@@ -123,19 +127,39 @@ export function ContentTable({ filters }: ContentTableProps) {
       : null;
 
   const items: ItemWithSearch[] = useAdvancedSearch
-    ? (searchData
-        ?.map((result) =>
-          result.contentItem
-            ? {
-                ...result.contentItem,
-                relevanceScore: result.relevanceScore,
-                matchedText: result.chunkText,
-              }
-            : null,
-        )
-        .filter((item): item is NonNullable<typeof item> => item !== null) ??
-      [])
-    : (listData?.items ?? []);
+    ? (() => {
+        // Map search results to items
+        const allItems =
+          searchData
+            ?.map((result) =>
+              result.contentItem
+                ? {
+                    ...result.contentItem,
+                    relevanceScore: result.relevanceScore,
+                    matchedText: result.snippet,
+                    matchType: result.matchType,
+                    matchedTerms: result.matchedTerms,
+                  }
+                : null,
+            )
+            .filter((item): item is NonNullable<typeof item> => item !== null) ??
+          [];
+
+        // Deduplicate: keep highest scoring result per content item
+        const itemMap = new Map<string, ItemWithSearch>();
+        for (const item of allItems) {
+          const existing = itemMap.get(item.id);
+          if (
+            !existing ||
+            (item.relevanceScore ?? 0) > (existing.relevanceScore ?? 0)
+          ) {
+            itemMap.set(item.id, item);
+          }
+        }
+
+        return Array.from(itemMap.values());
+      })()
+    : listData?.items ?? [];
 
   const hasItems = items.length > 0;
 
@@ -211,8 +235,21 @@ export function ContentTable({ filters }: ContentTableProps) {
                       </a>
                     </div>
                     {useAdvancedSearch && item.matchedText && (
-                      <div className="max-w-md text-muted-foreground text-sm">
-                        ...{item.matchedText.substring(0, 150)}...
+                      <div className="flex max-w-2xl flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          {item.matchType && (
+                            <MatchTypeBadge type={item.matchType} />
+                          )}
+                          {item.relevanceScore && (
+                            <span className="text-muted-foreground text-xs">
+                              {(item.relevanceScore * 100).toFixed(1)}% relevant
+                            </span>
+                          )}
+                        </div>
+                        <HighlightedSnippet
+                          snippet={item.matchedText}
+                          matchedTerms={item.matchedTerms || []}
+                        />
                       </div>
                     )}
                   </div>

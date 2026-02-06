@@ -9,6 +9,8 @@ export interface FetchResult {
   wordCount: number;
   tokenCount: number;
   duration: number;
+  finalUrl: string; // URL after following redirects
+  wasRedirected: boolean; // True if URL redirected
 }
 
 export class ContentFetchError extends Error {
@@ -66,11 +68,11 @@ function countWords(text: string): number {
 }
 
 /**
- * Fetch and extract content from web page
+ * Fetch and extract content from web page (static HTML only)
  * Uses cheerio for HTML parsing
  * 5-second timeout, strips nav/footer/ads
  */
-export async function fetchWebContent(url: string): Promise<FetchResult> {
+async function fetchWebContentStatic(url: string): Promise<FetchResult> {
   const startTime = Date.now();
 
   try {
@@ -95,20 +97,112 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
+    // Check for redirects
+    const finalUrl = response.url;
+    const wasRedirected = finalUrl !== url;
+
+    if (wasRedirected) {
+      console.log(`[Redirect detected] ${url} → ${finalUrl}`);
+    }
+
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // Remove unwanted elements
-    $("script, style, nav, footer, aside, .advertisement, .ad").remove();
+    // Part 1: Remove unwanted elements by tag name
+    $("script, style, nav, footer, aside").remove();
 
-    // Extract main content
-    const mainContent =
-      $("main").text() || $("article").text() || $("body").text();
+    // Part 2: Remove elements by common navigation/UI class patterns
+    $(
+      [
+        '[class*="header"]',
+        '[class*="navbar"]',
+        '[class*="nav-"]',
+        '[class*="navigation"]',
+        '[class*="menu"]',
+        '[class*="sidebar"]',
+        '[class*="footer"]',
+        '[class*="breadcrumb"]',
+        '[id*="header"]',
+        '[id*="nav"]',
+        '[id*="menu"]',
+        '[role="navigation"]',
+        '[role="banner"]',
+        '[role="complementary"]',
+        ".advertisement",
+        ".ad",
+        '[class*="cookie"]',
+        '[class*="consent"]',
+      ].join(", "),
+    ).remove();
 
-    // Clean up whitespace
+    // Remove header tags (often contain navigation)
+    $("header").remove();
+
+    // Part 3: Remove common UI button elements
+    $(
+      [
+        '[class*="share"]',
+        '[class*="social"]',
+        '[class*="copy"]',
+        '[class*="button"]',
+        '[class*="actions"]',
+        '[class*="toolbar"]',
+        '[id*="share"]',
+        '[id*="copy"]',
+        'button',
+      ].join(", "),
+    ).remove();
+
+    // Part 4: Remove elements by common button text patterns
+    $('*').filter(function() {
+      const text = $(this).text().trim();
+      const buttonPatterns = [
+        /^Copy as /i,
+        /^Open in /i,
+        /^Share on /i,
+        /^Download /i,
+        /^Print$/i,
+        /^Export /i,
+      ];
+      return buttonPatterns.some(pattern => pattern.test(text)) && text.length < 50;
+    }).remove();
+
+    // Part 5: Extract main content with priority order
+    let mainContent = "";
+
+    // Try to find article content first
+    const articleSelectors = [
+      "main article", // Article inside main tag
+      "article", // Standalone article
+      'main [role="main"]', // Main content by ARIA role
+      "main .content", // Common content wrapper
+      "main .post-content", // Blog post content
+      "main .article-content", // Article content
+      ".markdown-body", // GitHub/markdown content
+      "main", // Fallback to main tag
+    ];
+
+    for (const selector of articleSelectors) {
+      const element = $(selector).first();
+      if (element.length > 0) {
+        mainContent = element.text();
+        // Only use this if we got substantial content (more than just a title)
+        if (mainContent.trim().length > 100) {
+          break;
+        }
+      }
+    }
+
+    // Ultimate fallback: body (but this should rarely be needed now)
+    if (!mainContent || mainContent.trim().length < 100) {
+      mainContent = $("body").text();
+    }
+
+    // Part 4: Clean up whitespace more aggressively
     const plainText = mainContent
-      .replace(/\s+/g, " ")
-      .replace(/\n\s*\n/g, "\n")
+      .replace(/\s+/g, " ") // Collapse multiple spaces
+      .replace(/\n\s*\n/g, "\n") // Remove empty lines
+      .replace(/^\s+|\s+$/gm, "") // Trim each line
       .trim();
 
     const fullText = $.html();
@@ -122,6 +216,8 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
       wordCount,
       tokenCount,
       duration,
+      finalUrl,
+      wasRedirected,
     };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -136,6 +232,14 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
       error instanceof Error ? error : undefined,
     );
   }
+}
+
+/**
+ * Fetch and extract content from web page
+ * Uses improved static HTML extraction with comprehensive filtering
+ */
+export async function fetchWebContent(url: string): Promise<FetchResult> {
+  return fetchWebContentStatic(url);
 }
 
 /**
@@ -167,6 +271,8 @@ export async function fetchYouTubeTranscript(
         wordCount: 0,
         tokenCount: 0,
         duration,
+        finalUrl: url, // YouTube URLs don't redirect
+        wasRedirected: false,
       };
     }
 
@@ -182,6 +288,8 @@ export async function fetchYouTubeTranscript(
       wordCount,
       tokenCount,
       duration,
+      finalUrl: url, // YouTube URLs don't redirect
+      wasRedirected: false,
     };
   } catch (error) {
     const duration = Date.now() - startTime;

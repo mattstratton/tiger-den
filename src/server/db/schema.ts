@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -17,13 +18,25 @@ import {
 const tigerDenSchema = pgSchema("tiger_den");
 
 // Custom type for pgvector halfvec
-const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>(
-  {
-    dataType(config) {
-      return `halfvec(${(config as { dimension?: number } | undefined)?.dimension ?? 1536})`;
-    },
+const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>({
+  dataType(config) {
+    return `halfvec(${(config as { dimension?: number } | undefined)?.dimension ?? 1536})`;
   },
-);
+  toDriver(value: number[]): string {
+    // Convert array to PostgreSQL array format: '[0.1,0.2,0.3]'
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: unknown): number[] {
+    // Parse PostgreSQL array format back to number array
+    if (typeof value === "string") {
+      return value
+        .slice(1, -1) // Remove brackets
+        .split(",")
+        .map(Number);
+    }
+    return value as number[];
+  },
+});
 
 // Enums in tiger_den schema
 export const userRoleEnum = tigerDenSchema.enum("user_role", [
@@ -170,6 +183,9 @@ export const contentItems = tigerDenSchema.table(
   },
   (table) => ({
     currentUrlIdx: index("content_items_current_url_idx").on(table.currentUrl),
+    currentUrlUnique: unique("content_items_current_url_unique").on(
+      table.currentUrl,
+    ),
     contentTypeIdIdx: index("content_items_content_type_id_idx").on(
       table.contentTypeId,
     ),

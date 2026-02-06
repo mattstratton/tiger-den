@@ -1,13 +1,16 @@
 import { sql } from "drizzle-orm";
 import { indexingConfig } from "~/server/config/indexing-config";
 import { db } from "~/server/db";
+import { extractSmartSnippet } from "./snippet-extractor";
 
 export interface KeywordSearchResult {
   contentItemId: string;
   chunkId: string;
   chunkText: string;
+  snippet: string;
   relevanceScore: number;
   matchType: "keyword";
+  matchedTerms: string[];
 }
 
 interface QueryRow {
@@ -43,13 +46,18 @@ export async function keywordSearch(
 
   console.log(`[keywordSearch] Found ${(results as unknown as QueryRow[]).length} results`);
 
-  // Convert to result format with normalized relevance scores
-  // BM25 scores are already normalized by pg_textsearch
-  return (results as unknown as QueryRow[]).map((row, index) => ({
-    contentItemId: row.content_item_id,
-    chunkId: row.chunk_id,
-    chunkText: row.chunk_text,
-    relevanceScore: 1 / (index + 1), // Simple rank-based score
-    matchType: "keyword",
-  }));
+  // Convert to result format with normalized relevance scores and smart snippets
+  return (results as unknown as QueryRow[]).map((row, index) => {
+    const { snippet, matchedTerms } = extractSmartSnippet(row.chunk_text, query);
+
+    return {
+      contentItemId: row.content_item_id,
+      chunkId: row.chunk_id,
+      chunkText: row.chunk_text,
+      snippet,
+      relevanceScore: 1 / (index + 1), // Simple rank-based score
+      matchType: "keyword" as const,
+      matchedTerms,
+    };
+  });
 }
