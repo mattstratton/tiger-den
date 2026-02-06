@@ -57,6 +57,13 @@
       "when": 1738776000000,
       "tag": "0007_add_rbac_and_content_types",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1738786200000,
+      "tag": "0008_add_api_integration_fields",
+      "breakpoints": true
     }
   ]
 }
