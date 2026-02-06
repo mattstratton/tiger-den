@@ -3,9 +3,14 @@
  * Handles matching and syncing content from Ghost and Contentful APIs to the database
  */
 
+import crypto from "node:crypto";
+import { documentToPlainTextString } from "@contentful/rich-text-plain-text-renderer";
+import type { Document } from "@contentful/rich-text-types";
 import { eq, or } from "drizzle-orm";
 import { db } from "~/server/db";
-import { contentItems, contentTypes } from "~/server/db/schema";
+import { contentItems, contentText, contentTypes } from "~/server/db/schema";
+import { countTokens } from "./content-fetcher";
+import { indexFromExistingContent } from "./indexing-orchestrator";
 import type { GhostPost } from "./ghost-api-client";
 import type { LearnPageEntry, CaseStudyEntry } from "./contentful-api-client";
 
@@ -25,6 +30,14 @@ export interface PreviewResult {
   updatable: number;
   skipped: number;
   details: Array<{ title: string; url: string; status: "new" | "update" | "skip" }>;
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function calculateHash(text: string): string {
+  return crypto.createHash("sha256").update(text).digest("hex");
 }
 
 export class ContentSyncService {
@@ -49,6 +62,67 @@ export class ContentSyncService {
 
     contentTypeCache.set(slug, contentType.id);
     return contentType.id;
+  }
+
+  /**
+   * Write or update a content_text row with API-provided content.
+   * This avoids scraping by storing the CMS content directly.
+   * The row is created with indexStatus 'pending' so the chunker/embedder picks it up.
+   */
+  private async writeContentText(
+    contentItemId: string,
+    plainTextContent: string,
+    fullTextContent?: string,
+  ): Promise<void> {
+    if (!plainTextContent) return;
+
+    const wordCount = countWords(plainTextContent);
+    const tokenCount = await countTokens(plainTextContent);
+    const contentHash = calculateHash(plainTextContent);
+
+    const [record] = await db
+      .insert(contentText)
+      .values({
+        contentItemId,
+        fullText: fullTextContent ?? plainTextContent,
+        plainText: plainTextContent,
+        wordCount,
+        tokenCount,
+        contentHash,
+        crawlDurationMs: 0, // No crawl needed — content from API
+        indexStatus: "pending",
+      })
+      .onConflictDoUpdate({
+        target: contentText.contentItemId,
+        set: {
+          fullText: fullTextContent ?? plainTextContent,
+          plainText: plainTextContent,
+          wordCount,
+          tokenCount,
+          contentHash,
+          crawlDurationMs: 0,
+          indexStatus: "pending",
+          indexError: null,
+        },
+      })
+      .returning({ id: contentText.id });
+
+    // Immediately chunk + embed so content is fully indexed
+    if (record) {
+      await indexFromExistingContent(record.id);
+    }
+  }
+
+  /**
+   * Extract plain text from a Contentful RichText document
+   */
+  private extractRichTextPlain(richText: unknown): string {
+    if (!richText || typeof richText !== "object") return "";
+    try {
+      return documentToPlainTextString(richText as Document);
+    } catch {
+      return "";
+    }
   }
 
   /**
@@ -136,7 +210,7 @@ export class ContentSyncService {
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("blog_post");
 
-    await db.insert(contentItems).values({
+    const [inserted] = await db.insert(contentItems).values({
       title: post.title,
       currentUrl: normalizedUrl,
       contentTypeId,
@@ -148,7 +222,11 @@ export class ContentSyncService {
       ghostId: post.id,
       lastModifiedAt: new Date(post.updated_at),
       createdByUserId: this.SYSTEM_USER_ID,
-    });
+    }).returning({ id: contentItems.id });
+
+    if (inserted && post.plaintext) {
+      await this.writeContentText(inserted.id, post.plaintext, post.html);
+    }
   }
 
   /**
@@ -186,6 +264,11 @@ export class ContentSyncService {
         ...(urlChanged && { previousUrls }),
       })
       .where(eq(contentItems.id, itemId));
+
+    // Update content_text with latest API content
+    if (post.plaintext) {
+      await this.writeContentText(itemId, post.plaintext, post.html);
+    }
   }
 
   /**
@@ -222,7 +305,7 @@ export class ContentSyncService {
     page: LearnPageEntry,
     result: SyncResult,
   ): Promise<void> {
-    // Normalize URL (add https://www.timescale.com/ prefix if needed)
+    // Normalize URL (add https://www.tigerdata.com/ prefix if needed)
     const normalizedUrl = this.normalizeContentfulUrl(String(page.fields.url));
 
     // Find existing content by Contentful ID or URL
@@ -278,7 +361,7 @@ export class ContentSyncService {
       tagNames.push(String(page.fields.subSection));
     }
 
-    await db.insert(contentItems).values({
+    const [inserted] = await db.insert(contentItems).values({
       title: String(page.fields.title),
       currentUrl: normalizedUrl,
       contentTypeId,
@@ -288,7 +371,14 @@ export class ContentSyncService {
       contentfulId: page.sys.id,
       lastModifiedAt: new Date(page.sys.updatedAt),
       createdByUserId: this.SYSTEM_USER_ID,
-    });
+    }).returning({ id: contentItems.id });
+
+    if (inserted && page.fields.content) {
+      const plainText = this.extractRichTextPlain(page.fields.content);
+      if (plainText) {
+        await this.writeContentText(inserted.id, plainText);
+      }
+    }
   }
 
   /**
@@ -333,6 +423,14 @@ export class ContentSyncService {
         ...(urlChanged && { previousUrls }),
       })
       .where(eq(contentItems.id, itemId));
+
+    // Update content_text with latest API content
+    if (page.fields.content) {
+      const plainText = this.extractRichTextPlain(page.fields.content);
+      if (plainText) {
+        await this.writeContentText(itemId, plainText);
+      }
+    }
   }
 
   /**
@@ -373,7 +471,13 @@ export class ContentSyncService {
     const externalLink = study.fields.externalLink ? String(study.fields.externalLink) : null;
     const normalizedUrl = externalLink
       ? externalLink
-      : this.normalizeContentfulUrl(`customers/${String(study.fields.slug)}`);
+      : this.normalizeContentfulUrl(`case-studies/${String(study.fields.slug)}`);
+
+    // Skip case studies that link to external (non-tigerdata.com) domains (#16)
+    if (!this.isTigerDataUrl(normalizedUrl)) {
+      result.skipped++;
+      return;
+    }
 
     // Find existing content by Contentful ID or URL
     const existing = await db.query.contentItems.findFirst({
@@ -384,9 +488,11 @@ export class ContentSyncService {
     });
 
     if (existing) {
-      // Check if we should update
+      // If the existing item is from a different source (e.g., a Ghost blog post
+      // that a case study links to), merge metadata instead of skipping (#16)
       if (!this.shouldUpdate(existing.source, "contentful_api")) {
-        result.skipped++;
+        await this.mergeCaseStudyMetadata(existing.id, existing.tags, study);
+        result.updated++;
         return;
       }
 
@@ -411,6 +517,31 @@ export class ContentSyncService {
   }
 
   /**
+   * Merge case study metadata onto an existing content item from a different source.
+   * Adds the contentfulId and enriches tags with case study category.
+   * Does not change source, content type, or overwrite existing content.
+   */
+  private async mergeCaseStudyMetadata(
+    itemId: string,
+    existingTags: string[] | null,
+    study: CaseStudyEntry,
+  ): Promise<void> {
+    const newTags = new Set(existingTags ?? []);
+    newTags.add("case-study");
+    if (study.fields.category) {
+      newTags.add(String(study.fields.category));
+    }
+
+    await db
+      .update(contentItems)
+      .set({
+        contentfulId: study.sys.id,
+        tags: [...newTags],
+      })
+      .where(eq(contentItems.id, itemId));
+  }
+
+  /**
    * Create a new case study record
    */
   private async createCaseStudy(
@@ -425,7 +556,7 @@ export class ContentSyncService {
         ? String(study.fields.metaDescription)
         : undefined;
 
-    await db.insert(contentItems).values({
+    const [inserted] = await db.insert(contentItems).values({
       title: String(study.fields.name),
       currentUrl: normalizedUrl,
       contentTypeId,
@@ -435,7 +566,14 @@ export class ContentSyncService {
       contentfulId: study.sys.id,
       lastModifiedAt: new Date(study.sys.updatedAt),
       createdByUserId: this.SYSTEM_USER_ID,
-    });
+    }).returning({ id: contentItems.id });
+
+    if (inserted && study.fields.content) {
+      const plainText = this.extractRichTextPlain(study.fields.content);
+      if (plainText) {
+        await this.writeContentText(inserted.id, plainText);
+      }
+    }
   }
 
   /**
@@ -477,6 +615,14 @@ export class ContentSyncService {
         ...(urlChanged && { previousUrls }),
       })
       .where(eq(contentItems.id, itemId));
+
+    // Update content_text with latest API content
+    if (study.fields.content) {
+      const plainText = this.extractRichTextPlain(study.fields.content);
+      if (plainText) {
+        await this.writeContentText(itemId, plainText);
+      }
+    }
   }
 
   /**
@@ -572,7 +718,14 @@ export class ContentSyncService {
       const slug = String(study.fields.slug);
       const normalizedUrl = externalLink
         ? externalLink
-        : this.normalizeContentfulUrl(`customers/${slug}`);
+        : this.normalizeContentfulUrl(`case-studies/${slug}`);
+
+      // Skip case studies that link to external (non-tigerdata.com) domains (#16)
+      if (!this.isTigerDataUrl(normalizedUrl)) {
+        result.skipped++;
+        result.details.push({ title, url: normalizedUrl, status: "skip" });
+        continue;
+      }
 
       const existing = await db.query.contentItems.findFirst({
         where: or(
@@ -605,6 +758,18 @@ export class ContentSyncService {
   }
 
   /**
+   * Check if a URL belongs to tigerdata.com
+   */
+  private isTigerDataUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === "www.tigerdata.com" || parsed.hostname === "tigerdata.com";
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Check if we should update a content item based on its source
    */
   private shouldUpdate(
@@ -629,8 +794,9 @@ export class ContentSyncService {
   private normalizeGhostUrl(url: string): string {
     try {
       const parsed = new URL(url);
-      // Return just the pathname without leading slash
-      return `https://www.timescale.com${parsed.pathname}`;
+      // Return pathname without trailing slash
+      const path = parsed.pathname.replace(/\/+$/, "");
+      return `https://www.tigerdata.com${path}`;
     } catch {
       return url;
     }
@@ -638,15 +804,19 @@ export class ContentSyncService {
 
   /**
    * Normalize Contentful URL
-   * Add https://www.timescale.com/ prefix if not present
+   * Add https://www.tigerdata.com/ prefix if not present
    */
   private normalizeContentfulUrl(url: string): string {
+    let normalized: string;
     if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
+      normalized = url;
+    } else {
+      // Remove leading slash if present
+      const cleanUrl = url.startsWith("/") ? url.slice(1) : url;
+      normalized = `https://www.tigerdata.com/${cleanUrl}`;
     }
-    // Remove leading slash if present
-    const cleanUrl = url.startsWith("/") ? url.slice(1) : url;
-    return `https://www.timescale.com/${cleanUrl}`;
+    // Strip trailing slash for consistency
+    return normalized.replace(/\/+$/, "");
   }
 }
 

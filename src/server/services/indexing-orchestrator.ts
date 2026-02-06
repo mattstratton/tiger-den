@@ -189,6 +189,84 @@ export async function indexSingleItem(
 }
 
 /**
+ * Index a content item that already has content_text populated (e.g. from API sync).
+ * Skips fetching — just chunks and generates embeddings.
+ */
+export async function indexFromExistingContent(
+  contentTextId: string,
+): Promise<IndexingResult> {
+  try {
+    const record = await db.query.contentText.findFirst({
+      where: eq(contentText.id, contentTextId),
+    });
+
+    if (!record || !record.plainText) {
+      return {
+        success: false,
+        contentItemId: contentTextId,
+        error: "No content_text record or empty plainText",
+      };
+    }
+
+    // Delete any old chunks for this content_text
+    await db
+      .delete(contentChunks)
+      .where(eq(contentChunks.contentTextId, record.id));
+
+    // Chunk content
+    const chunks = await chunkContent(record.plainText);
+
+    // Generate embeddings and store chunks
+    const chunksWithEmbeddings = await Promise.all(
+      chunks.map(async (chunk) => {
+        try {
+          const embedding = await generateEmbedding(chunk.text);
+          return {
+            contentTextId: record.id,
+            chunkText: chunk.text,
+            chunkIndex: chunk.index,
+            chunkTokenCount: chunk.tokenCount,
+            embedding,
+          };
+        } catch (error) {
+          console.error(`Failed to generate embedding for chunk ${chunk.index}:`, error);
+          return {
+            contentTextId: record.id,
+            chunkText: chunk.text,
+            chunkIndex: chunk.index,
+            chunkTokenCount: chunk.tokenCount,
+            embedding: null,
+          };
+        }
+      }),
+    );
+
+    await db.insert(contentChunks).values(chunksWithEmbeddings);
+
+    // Mark as indexed
+    await db
+      .update(contentText)
+      .set({
+        indexStatus: "indexed",
+        indexedAt: new Date(),
+        indexError: null,
+      })
+      .where(eq(contentText.id, record.id));
+
+    return {
+      success: true,
+      contentItemId: record.contentItemId,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      contentItemId: contentTextId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
  * Index multiple content items
  * Sync for ≤10 items, mark as pending for 11+
  */

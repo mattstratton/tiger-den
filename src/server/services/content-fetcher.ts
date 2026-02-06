@@ -47,7 +47,7 @@ export function extractYouTubeVideoId(url: string): string | null {
  * Count tokens using tiktoken (OpenAI compatible)
  * Uses cl100k_base encoding (same as text-embedding-3-small)
  */
-async function countTokens(text: string): Promise<number> {
+export async function countTokens(text: string): Promise<number> {
   try {
     const encoding = encoding_for_model("text-embedding-3-small");
     const tokens = encoding.encode(text);

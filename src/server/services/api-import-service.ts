@@ -129,7 +129,7 @@ class ApiImportService {
           title: String(entry.fields.name),
           url:
             (entry.fields.externalLink ? String(entry.fields.externalLink) : null) ??
-            `customers/${String(entry.fields.slug)}`,
+            `case-studies/${String(entry.fields.slug)}`,
           raw: entry,
         };
       }

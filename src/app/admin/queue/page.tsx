@@ -167,7 +167,8 @@ export default function QueueDashboardPage() {
           <h2 className="mb-2 font-semibold text-lg">Bulk Re-index</h2>
           <p className="text-muted-foreground mb-4 text-sm">
             Index all content items that haven&apos;t been indexed yet or had failed indexing.
-            This fetches page content from URLs, chunks it, and generates embeddings for search.
+            Items with API content (Ghost/Contentful) are chunked and embedded directly.
+            External URLs are fetched via web scraping as a fallback.
           </p>
           <button
             onClick={handleReindexAll}

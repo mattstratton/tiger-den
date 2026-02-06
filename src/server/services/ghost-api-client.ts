@@ -90,7 +90,7 @@ class GhostAPIClient {
     try {
       const post = await this.api!.posts.read(
         { slug },
-        { include: ["tags", "authors"] },
+        { include: ["tags", "authors"], formats: ["plaintext", "html"] } as any,
       );
       return post as GhostPost;
     } catch (error) {
@@ -112,7 +112,7 @@ class GhostAPIClient {
     try {
       const post = await this.api!.posts.read(
         { id },
-        { include: ["tags", "authors"] },
+        { include: ["tags", "authors"], formats: ["plaintext", "html"] } as any,
       );
       return post as GhostPost;
     } catch (error) {
@@ -138,7 +138,8 @@ class GhostAPIClient {
       limit: options?.limit ?? 50,
       page: options?.page ?? 1,
       include: ["tags", "authors"],
-    });
+      formats: ["plaintext", "html"],
+    } as any);
 
     // Ghost SDK returns array with meta property attached
     // Transform to our expected format
@@ -154,24 +155,41 @@ class GhostAPIClient {
   /**
    * Fetch posts updated since a specific date
    */
-  async fetchPostsSince(
-    date: Date,
-    options?: { limit?: number },
-  ): Promise<GhostPost[]> {
+  async fetchPostsSince(date: Date): Promise<GhostPost[]> {
     if (!this.isEnabled()) {
       throw new Error("Ghost API not configured");
     }
 
     // Ghost uses ISO 8601 format for date filters
     const isoDate = date.toISOString();
+    const allPosts: GhostPost[] = [];
+    let page = 1;
+    let hasMore = true;
 
-    const response = await this.api!.posts.browse({
-      limit: options?.limit ?? "all",
-      filter: `updated_at:>'${isoDate}'`,
-      include: ["tags", "authors"],
-    });
+    while (hasMore) {
+      const response = await this.api!.posts.browse({
+        limit: 50,
+        page,
+        filter: `updated_at:>'${isoDate}'`,
+        include: ["tags", "authors"],
+        formats: ["plaintext", "html"],
+      } as any);
 
-    return response as unknown as GhostPost[];
+      const posts = response as unknown as GhostPost[];
+      const meta = (response as any).meta;
+      allPosts.push(...posts);
+
+      console.log(`[Ghost] fetchPostsSince page ${page}: got ${posts.length} posts (total so far: ${allPosts.length}, total available: ${meta?.pagination?.total ?? "?"})`);
+
+      hasMore = meta?.pagination?.next !== null;
+      page++;
+
+      if (hasMore) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    return allPosts;
   }
 
   /**
@@ -190,8 +208,14 @@ class GhostAPIClient {
       const response = await this.fetchAllPosts({ limit: 50, page });
       allPosts.push(...response.posts);
 
-      hasMore = response.meta.pagination.next !== null;
+      console.log(`[Ghost] Page ${page}: fetched ${response.posts.length} posts (total so far: ${allPosts.length}, pages: ${response.meta?.pagination?.pages ?? "?"})`);
+
+      hasMore = response.meta?.pagination?.next !== null;
       page++;
+
+      if (hasMore) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
     }
 
     return allPosts;

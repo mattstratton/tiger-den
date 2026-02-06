@@ -4,7 +4,7 @@ import { createTRPCRouter, adminProcedure, protectedProcedure } from "~/server/a
 import { db } from "~/server/db";
 import { contentItems, contentText } from "~/server/db/schema";
 import { getQueue } from "~/server/queue/indexing-queue";
-import { indexContent } from "~/server/services/indexing-orchestrator";
+import { indexContent, indexFromExistingContent } from "~/server/services/indexing-orchestrator";
 
 export const queueRouter = createTRPCRouter({
   /**
@@ -160,63 +160,111 @@ export const queueRouter = createTRPCRouter({
   }),
 
   /**
-   * Re-index all content items that have no content_text row or failed indexing
+   * Re-index all content items that need indexing.
+   * - Items with content_text already populated (from API sync, status 'pending'):
+   *   chunk + embed directly without scraping.
+   * - Items with failed content_text: reset and re-chunk/embed if content exists,
+   *   otherwise fall back to fetching.
+   * - Items with no content_text row at all: fetch via URL (scrape or API).
    */
   reindexAll: adminProcedure.mutation(async () => {
-    // Find content items with no content_text row
+    let succeeded = 0;
+    let failed = 0;
+    let queued = 0;
+    const errors: string[] = [];
+
+    // 1. Items with content_text that has content and status 'pending' (from API sync)
+    //    These already have plainText populated — just chunk + embed.
+    const pendingWithContent = await db.query.contentText.findMany({
+      where: eq(contentText.indexStatus, "pending"),
+    });
+    const pendingReady = pendingWithContent.filter(
+      (ct) => ct.plainText && ct.plainText.length > 0,
+    );
+
+    console.log(`[reindexAll] ${pendingReady.length} pending items with API content (chunk + embed only)`);
+    for (const ct of pendingReady) {
+      const result = await indexFromExistingContent(ct.id);
+      if (result.success) {
+        succeeded++;
+      } else {
+        failed++;
+        errors.push(`${ct.contentItemId}: ${result.error}`);
+      }
+    }
+
+    // 2. Items with failed status — reset and try again.
+    //    If they have content already (from API), re-chunk/embed.
+    //    Otherwise, fall back to URL fetching.
+    const failedItems = await db.query.contentText.findMany({
+      where: eq(contentText.indexStatus, "failed"),
+      with: { contentItem: true },
+    });
+
+    const failedWithContent = failedItems.filter(
+      (ct) => ct.plainText && ct.plainText.length > 0,
+    );
+    const failedWithoutContent = failedItems.filter(
+      (ct) => !ct.plainText || ct.plainText.length === 0,
+    );
+
+    console.log(`[reindexAll] ${failedWithContent.length} failed items with content, ${failedWithoutContent.length} without`);
+
+    for (const ct of failedWithContent) {
+      const result = await indexFromExistingContent(ct.id);
+      if (result.success) {
+        succeeded++;
+      } else {
+        failed++;
+        errors.push(`${ct.contentItemId}: ${result.error}`);
+      }
+    }
+
+    // Failed items without content — delete row and re-fetch via URL
+    const fetchItems: Array<{ id: string; url: string }> = [];
+    for (const item of failedWithoutContent) {
+      if (item.contentItem?.currentUrl) {
+        await db.delete(contentText).where(eq(contentText.id, item.id));
+        fetchItems.push({ id: item.contentItemId, url: item.contentItem.currentUrl });
+      }
+    }
+
+    // 3. Items with no content_text row at all — need to fetch via URL
     const notIndexedItems = await db.execute(sql`
       SELECT ci.id, ci.current_url FROM tiger_den.content_items ci
       WHERE NOT EXISTS (
         SELECT 1 FROM tiger_den.content_text ct WHERE ct.content_item_id = ci.id
       )
     `);
-
-    // Find content items with failed indexing
-    const failedItems = await db.query.contentText.findMany({
-      where: eq(contentText.indexStatus, "failed"),
-      with: { contentItem: true },
-    });
-
-    // Build list of items to index
-    const items: Array<{ id: string; url: string }> = [];
-
     for (const row of notIndexedItems as unknown as Array<{ id: string; current_url: string }>) {
-      items.push({ id: row.id, url: row.current_url });
+      fetchItems.push({ id: row.id, url: row.current_url });
     }
 
-    for (const item of failedItems) {
-      if (item.contentItem?.currentUrl) {
-        // Delete the failed content_text row so indexSingleItem can create a fresh one
-        await db.delete(contentText).where(eq(contentText.id, item.id));
-        items.push({ id: item.contentItemId, url: item.contentItem.currentUrl });
-      }
+    // Process URL-fetch items if any
+    if (fetchItems.length > 0) {
+      console.log(`[reindexAll] ${fetchItems.length} items need URL fetching`);
+      const fetchResult = await indexContent(fetchItems);
+      succeeded += fetchResult.succeeded;
+      failed += fetchResult.failed;
+      queued += fetchResult.queued;
+      errors.push(
+        ...fetchResult.results
+          .filter((r) => !r.success && r.error)
+          .map((r) => `${r.contentItemId}: ${r.error}`),
+      );
     }
 
-    if (items.length === 0) {
-      return {
-        success: true,
-        message: "All content items are already indexed",
-        total: 0,
-        succeeded: 0,
-        failed: 0,
-        queued: 0,
-      };
-    }
-
-    console.log(`[reindexAll] Indexing ${items.length} items...`);
-    const result = await indexContent(items);
-    console.log(`[reindexAll] Complete: ${result.succeeded} succeeded, ${result.failed} failed, ${result.queued} queued`);
+    const total = succeeded + failed + queued;
+    console.log(`[reindexAll] Complete: ${succeeded} succeeded, ${failed} failed, ${queued} queued`);
 
     return {
       success: true,
-      message: `Indexed ${result.succeeded} items, ${result.failed} failed, ${result.queued} queued`,
-      total: result.total,
-      succeeded: result.succeeded,
-      failed: result.failed,
-      queued: result.queued,
-      errors: result.results
-        .filter((r) => !r.success && r.error)
-        .map((r) => `${r.contentItemId}: ${r.error}`),
+      message: `Indexed ${succeeded} items, ${failed} failed, ${queued} queued`,
+      total,
+      succeeded,
+      failed,
+      queued,
+      errors: errors.length > 0 ? errors : undefined,
     };
   }),
 });
