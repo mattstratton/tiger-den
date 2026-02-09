@@ -120,8 +120,58 @@ export function ContentTable({ filters }: ContentTableProps) {
       ? keywordSearchLoading
       : listLoading;
 
+  const hasActiveFilters =
+    (debouncedSearch?.length ?? 0) > 0 ||
+    filters.contentTypeIds.length > 0 ||
+    filters.campaignIds.length > 0 ||
+    filters.publishDateFrom.length > 0 ||
+    filters.publishDateTo.length > 0;
+
   if (isLoading) {
-    return <div className="py-8 text-center">Loading...</div>;
+    return (
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Publish Date</TableHead>
+              <TableHead>Campaigns</TableHead>
+              <TableHead>Author</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Index Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-5 w-16 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-5 w-20 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-5 w-28 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="ml-auto h-8 w-8 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-5 w-16 animate-pulse rounded bg-muted" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
   }
 
   // Normalize data structure for all modes
@@ -176,6 +226,9 @@ export function ContentTable({ filters }: ContentTableProps) {
   const hasItems = items.length > 0;
 
   if (!hasItems) {
+    const emptyMessage = hasActiveFilters
+      ? "No results for this search or filter. Clear filters above to see all content."
+      : "No content items yet. Add your first content item to get started.";
     return (
       <div className="rounded-md border">
         <Table>
@@ -197,9 +250,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                 className="text-center text-muted-foreground"
                 colSpan={useAdvancedSearch ? 8 : 7}
               >
-                {useAdvancedSearch
-                  ? "No matching content found. Try a different search query."
-                  : "No content items yet. Add your first content item to get started."}
+                {emptyMessage}
               </TableCell>
             </TableRow>
           </TableBody>

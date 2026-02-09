@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "~/components/ui/button";
 import { api } from "~/trpc/react";
 
 interface ReindexButtonProps {
@@ -23,14 +25,14 @@ export function ReindexButton({ contentId, indexStatus }: ReindexButtonProps) {
 
   const reindexMutation = api.content.reindexContent.useMutation({
     onSuccess: async () => {
-      // Refetch index status
       await utils.content.getIndexStatus.invalidate({ id: contentId });
       setIsReindexing(false);
+      toast.success("Re-indexed successfully");
     },
     onError: (error) => {
       console.error("Reindex failed:", error);
       setIsReindexing(false);
-      alert(`Reindex failed: ${error.message}`);
+      toast.error(`Reindex failed: ${error.message}`);
     },
   });
 
@@ -48,12 +50,13 @@ export function ReindexButton({ contentId, indexStatus }: ReindexButtonProps) {
   };
 
   return (
-    <button
-      className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+    <Button
       disabled={isReindexing}
+      size="sm"
+      variant="secondary"
       onClick={handleReindex}
     >
       {isReindexing ? "Reindexing..." : "Re-index"}
-    </button>
+    </Button>
   );
 }

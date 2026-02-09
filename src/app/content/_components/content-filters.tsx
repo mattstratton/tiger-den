@@ -14,6 +14,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -53,7 +54,9 @@ export function ContentFilters({
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const { data: campaigns } = api.campaigns.list.useQuery();
   const { data: contentTypes } = api.contentTypes.list.useQuery();
+  const { data: myRole } = api.users.getMyRole.useQuery();
   const utils = api.useUtils();
+  const isAdmin = myRole?.role === "admin";
 
   const deleteAllMutation = api.content.deleteAll.useMutation({
     onSuccess: () => {
@@ -104,51 +107,64 @@ export function ContentFilters({
               type="search"
               value={filters.search}
             />
-            {filters.search && (
-              <div className="flex gap-2">
-                <button
-                  className={`rounded px-2 py-1 text-xs ${
-                    filters.searchMode === "metadata"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  onClick={() =>
-                    onFiltersChange({ ...filters, searchMode: "metadata" })
-                  }
-                  type="button"
-                >
-                  Titles/Metadata
-                </button>
-                <button
-                  className={`rounded px-2 py-1 text-xs ${
-                    filters.searchMode === "keyword"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  onClick={() =>
-                    onFiltersChange({ ...filters, searchMode: "keyword" })
-                  }
-                  title="BM25 keyword search - no AI cost"
-                  type="button"
-                >
-                  Keywords (Free)
-                </button>
-                <button
-                  className={`rounded px-2 py-1 text-xs ${
-                    filters.searchMode === "fullContent"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  onClick={() =>
-                    onFiltersChange({ ...filters, searchMode: "fullContent" })
-                  }
-                  title="Hybrid search with AI embeddings - uses OpenAI"
-                  type="button"
-                >
-                  Full Content (AI)
-                </button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground text-xs">
+                {filters.search
+                  ? "Search mode:"
+                  : "Search mode (type to search):"}
+              </span>
+              <button
+                className={`rounded px-2 py-1 text-xs transition-colors ${
+                  filters.searchMode === "metadata"
+                    ? "bg-primary/20 text-foreground font-medium"
+                    : filters.search
+                      ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                      : "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-60"
+                }`}
+                disabled={!filters.search}
+                onClick={() =>
+                  onFiltersChange({ ...filters, searchMode: "metadata" })
+                }
+                title="Search in title, description, and URL"
+                type="button"
+              >
+                Titles/Metadata
+              </button>
+              <button
+                className={`rounded px-2 py-1 text-xs transition-colors ${
+                  filters.searchMode === "keyword"
+                    ? "bg-primary/20 text-foreground font-medium"
+                    : filters.search
+                      ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                      : "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-60"
+                }`}
+                disabled={!filters.search}
+                onClick={() =>
+                  onFiltersChange({ ...filters, searchMode: "keyword" })
+                }
+                title="BM25 keyword search — no AI cost"
+                type="button"
+              >
+                Keywords (Free)
+              </button>
+              <button
+                className={`rounded px-2 py-1 text-xs transition-colors ${
+                  filters.searchMode === "fullContent"
+                    ? "bg-primary/20 text-foreground font-medium"
+                    : filters.search
+                      ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                      : "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-60"
+                }`}
+                disabled={!filters.search}
+                onClick={() =>
+                  onFiltersChange({ ...filters, searchMode: "fullContent" })
+                }
+                title="Hybrid search with AI embeddings — uses OpenAI"
+                type="button"
+              >
+                Full Content (AI)
+              </button>
+            </div>
           </div>
 
           <Select
@@ -195,27 +211,47 @@ export function ContentFilters({
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2">
-            <Input
-              aria-label="Publish date from"
-              className="w-[140px]"
-              onChange={(e) =>
-                onFiltersChange({ ...filters, publishDateFrom: e.target.value })
-              }
-              placeholder="From (YYYY-MM-DD)"
-              type="date"
-              value={filters.publishDateFrom}
-            />
-            <Input
-              aria-label="Publish date to"
-              className="w-[140px]"
-              onChange={(e) =>
-                onFiltersChange({ ...filters, publishDateTo: e.target.value })
-              }
-              placeholder="To (YYYY-MM-DD)"
-              type="date"
-              value={filters.publishDateTo}
-            />
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-muted-foreground text-xs">
+              Publish date range
+            </Label>
+            <div className="flex items-center gap-2">
+              <Label
+                className="w-8 shrink-0 text-muted-foreground text-xs"
+                htmlFor="publish-date-from"
+              >
+                From
+              </Label>
+              <Input
+                id="publish-date-from"
+                aria-label="Publish date from"
+                className="w-[140px]"
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...filters,
+                    publishDateFrom: e.target.value,
+                  })
+                }
+                type="date"
+                value={filters.publishDateFrom}
+              />
+              <Label
+                className="w-6 shrink-0 text-muted-foreground text-xs"
+                htmlFor="publish-date-to"
+              >
+                To
+              </Label>
+              <Input
+                id="publish-date-to"
+                aria-label="Publish date to"
+                className="w-[140px]"
+                onChange={(e) =>
+                  onFiltersChange({ ...filters, publishDateTo: e.target.value })
+                }
+                type="date"
+                value={filters.publishDateTo}
+              />
+            </div>
           </div>
 
           {hasActiveFilters && (
@@ -242,14 +278,16 @@ export function ContentFilters({
                 Coming soon
               </span>
             </span>
-            <Button
-              className="ml-2"
-              onClick={() => setShowDeleteAllDialog(true)}
-              variant="destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete All
-            </Button>
+            {isAdmin && (
+              <Button
+                className="ml-2"
+                onClick={() => setShowDeleteAllDialog(true)}
+                variant="destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete All
+              </Button>
+            )}
           </div>
         </div>
       </div>

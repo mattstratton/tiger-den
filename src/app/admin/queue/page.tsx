@@ -1,6 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import { Button } from "~/components/ui/button";
 import { api } from "~/trpc/react";
 
 export default function QueueDashboardPage() {
@@ -9,6 +21,9 @@ export default function QueueDashboardPage() {
     message: string;
     errors?: string[];
   } | null>(null);
+  const [enqueueDialogOpen, setEnqueueDialogOpen] = useState(false);
+  const [retryDialogOpen, setRetryDialogOpen] = useState(false);
+  const [reindexDialogOpen, setReindexDialogOpen] = useState(false);
 
   // Query queue stats with auto-refresh every 5 seconds
   const { data: stats, refetch } = api.queue.getStats.useQuery(undefined, {
@@ -19,40 +34,42 @@ export default function QueueDashboardPage() {
   const pauseMutation = api.queue.pause.useMutation({
     onSuccess: () => {
       setIsPaused(true);
-      alert("Worker paused");
+      toast.success("Worker paused");
     },
     onError: (error) => {
-      alert(`Failed to pause worker: ${error.message}`);
+      toast.error(`Failed to pause worker: ${error.message}`);
     },
   });
 
   const resumeMutation = api.queue.resume.useMutation({
     onSuccess: () => {
       setIsPaused(false);
-      alert("Worker resumed (requires server restart if fully stopped)");
+      toast.success("Worker resumed (requires server restart if fully stopped)");
     },
     onError: (error) => {
-      alert(`Failed to resume worker: ${error.message}`);
+      toast.error(`Failed to resume worker: ${error.message}`);
     },
   });
 
   const enqueuePendingMutation = api.queue.enqueuePending.useMutation({
     onSuccess: (data) => {
-      alert(data.message);
+      toast.success(data.message);
+      setEnqueueDialogOpen(false);
       void refetch();
     },
     onError: (error) => {
-      alert(`Failed to enqueue pending items: ${error.message}`);
+      toast.error(`Failed to enqueue pending items: ${error.message}`);
     },
   });
 
   const retryFailedMutation = api.queue.retryFailed.useMutation({
     onSuccess: (data) => {
-      alert(data.message);
+      toast.success(data.message);
+      setRetryDialogOpen(false);
       void refetch();
     },
     onError: (error) => {
-      alert(`Failed to retry failed jobs: ${error.message}`);
+      toast.error(`Failed to retry failed jobs: ${error.message}`);
     },
   });
 
@@ -62,47 +79,29 @@ export default function QueueDashboardPage() {
         message: data.message,
         errors: data.errors && data.errors.length > 0 ? data.errors : undefined,
       });
+      setReindexDialogOpen(false);
       void refetch();
     },
     onError: (error) => {
       setReindexResult({
         message: `Failed: ${error.message}`,
       });
+      setReindexDialogOpen(false);
+      toast.error(`Re-index failed: ${error.message}`);
     },
   });
 
   const handleEnqueuePending = () => {
-    if (
-      confirm(
-        `Are you sure you want to enqueue ${stats?.pending ?? 0} pending items?`,
-      )
-    ) {
-      enqueuePendingMutation.mutate();
-    }
+    setEnqueueDialogOpen(true);
   };
 
   const handleRetryFailed = () => {
-    if (
-      confirm(
-        `Are you sure you want to retry ${stats?.failed ?? 0} failed jobs?`,
-      )
-    ) {
-      retryFailedMutation.mutate();
-    }
+    setRetryDialogOpen(true);
   };
 
   const handleReindexAll = () => {
-    const notIndexed = stats?.notIndexed ?? 0;
-    const failedIndexing = stats?.failedIndexing ?? 0;
-    const total = notIndexed + failedIndexing;
-    if (
-      confirm(
-        `Re-index ${total} content items (${notIndexed} not indexed, ${failedIndexing} failed)?\n\nThis will fetch and index content from URLs, which may take a while.`,
-      )
-    ) {
-      setReindexResult(null);
-      reindexAllMutation.mutate();
-    }
+    setReindexResult(null);
+    setReindexDialogOpen(true);
   };
 
   return (
@@ -170,18 +169,17 @@ export default function QueueDashboardPage() {
             Items with API content (Ghost/Contentful) are chunked and embedded directly.
             External URLs are fetched via web scraping as a fallback.
           </p>
-          <button
-            onClick={handleReindexAll}
+          <Button
             disabled={
               reindexAllMutation.isPending ||
               ((stats?.notIndexed ?? 0) === 0 && (stats?.failedIndexing ?? 0) === 0)
             }
-            className="rounded-md border bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleReindexAll}
           >
             {reindexAllMutation.isPending
               ? "Re-indexing..."
               : `Re-index All (${(stats?.notIndexed ?? 0) + (stats?.failedIndexing ?? 0)} items)`}
-          </button>
+          </Button>
 
           {reindexResult && (
             <div className="mt-4 rounded-md border p-4">
@@ -205,55 +203,118 @@ export default function QueueDashboardPage() {
         <div className="rounded-lg border bg-card p-6">
           <h2 className="mb-4 font-semibold text-lg">Worker Controls</h2>
           <div className="flex gap-4">
-            <button
-              onClick={() => pauseMutation.mutate()}
+            <Button
               disabled={isPaused || pauseMutation.isPending}
-              className="rounded-md border bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => pauseMutation.mutate()}
             >
               {pauseMutation.isPending ? "Pausing..." : "Pause Worker"}
-            </button>
-            <button
-              onClick={() => resumeMutation.mutate()}
+            </Button>
+            <Button
               disabled={!isPaused || resumeMutation.isPending}
-              className="rounded-md border bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => resumeMutation.mutate()}
+              variant="secondary"
             >
               {resumeMutation.isPending ? "Resuming..." : "Resume Worker"}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="rounded-lg border bg-card p-6">
           <h2 className="mb-4 font-semibold text-lg">Queue Management</h2>
           <div className="flex gap-4">
-            <button
-              onClick={handleEnqueuePending}
+            <Button
               disabled={
                 !stats?.pending ||
                 stats.pending === 0 ||
                 enqueuePendingMutation.isPending
               }
-              className="rounded-md border bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleEnqueuePending}
             >
               {enqueuePendingMutation.isPending
                 ? "Enqueueing..."
                 : `Enqueue All Pending Items (${stats?.pending ?? 0})`}
-            </button>
-            <button
-              onClick={handleRetryFailed}
+            </Button>
+            <Button
               disabled={
                 !stats?.failed ||
                 stats.failed === 0 ||
                 retryFailedMutation.isPending
               }
-              className="rounded-md border bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleRetryFailed}
+              variant="secondary"
             >
               {retryFailedMutation.isPending
                 ? "Retrying..."
                 : `Retry Failed Jobs (${stats?.failed ?? 0})`}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Confirmation dialogs */}
+      <AlertDialog onOpenChange={setEnqueueDialogOpen} open={enqueueDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enqueue pending items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to enqueue {stats?.pending ?? 0} pending
+              items? They will be processed by the worker.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => enqueuePendingMutation.mutate()}
+              disabled={enqueuePendingMutation.isPending}
+            >
+              {enqueuePendingMutation.isPending ? "Enqueueing..." : "Enqueue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog onOpenChange={setRetryDialogOpen} open={retryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retry failed jobs?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to retry {stats?.failed ?? 0} failed jobs?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => retryFailedMutation.mutate()}
+              disabled={retryFailedMutation.isPending}
+            >
+              {retryFailedMutation.isPending ? "Retrying..." : "Retry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog onOpenChange={setReindexDialogOpen} open={reindexDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Re-index all?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Re-index {(stats?.notIndexed ?? 0) + (stats?.failedIndexing ?? 0)}{" "}
+              content items ({(stats?.notIndexed ?? 0)} not indexed,{" "}
+              {stats?.failedIndexing ?? 0} failed). This will fetch and index
+              content from URLs and may take a while.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => reindexAllMutation.mutate()}
+              disabled={reindexAllMutation.isPending}
+            >
+              {reindexAllMutation.isPending ? "Re-indexing..." : "Re-index All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Auto-refresh indicator */}
       <div className="text-muted-foreground mt-8 text-center text-sm">
