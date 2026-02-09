@@ -39,10 +39,6 @@ Tiger Den helps marketing teams track and manage their published content across 
 - Node.js 18+ and npm
 - PostgreSQL database (recommended: [Tiger Cloud](https://www.tigerdata.com))
 - Google OAuth credentials (for authentication)
-- **yt-dlp** (for YouTube transcript extraction)
-  - macOS: `brew install yt-dlp`
-  - Python: `pip install yt-dlp`
-  - See [yt-dlp installation](https://github.com/yt-dlp/yt-dlp#installation)
 - **OpenAI API key** (optional, for Full Content AI search)
   - Get yours at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
@@ -92,6 +88,19 @@ ENABLE_CONTENT_INDEXING=true     # Enable/disable indexing (default: true)
 # OpenAI API (Optional - only for Full Content AI search)
 OPENAI_API_KEY="sk-..."          # Get from: https://platform.openai.com/api-keys
                                  # If not provided, Keywords (Free) search still works
+
+# Ghost CMS API (Optional - for importing blog posts)
+GHOST_API_URL="https://your-ghost-site.com"
+GHOST_CONTENT_API_KEY="your-content-api-key"
+
+# Contentful API (Optional - for importing content)
+CONTENTFUL_SPACE_ID="your-space-id"
+CONTENTFUL_ACCESS_TOKEN="your-access-token"
+CONTENTFUL_ENVIRONMENT="master"
+
+# YouTube Data API (Optional - for bulk importing from a channel)
+YOUTUBE_API_KEY="your-api-key"   # From Google Cloud Console
+YOUTUBE_CHANNEL_ID="UCxxxxxx"    # Channel ID to import from
 ```
 
 **Generate Auth Secret:**
@@ -113,6 +122,13 @@ openssl rand -base64 32
 | `INDEXING_TIMEOUT_MS` | No | `5000` | Timeout for content fetching (ms) |
 | `ENABLE_CONTENT_INDEXING` | No | `true` | Enable content indexing feature |
 | `OPENAI_API_KEY` | No | - | OpenAI API key for AI search (~$0.0001/search) |
+| `GHOST_API_URL` | No | - | Ghost CMS URL for blog post import |
+| `GHOST_CONTENT_API_KEY` | No | - | Ghost Content API key |
+| `CONTENTFUL_SPACE_ID` | No | - | Contentful space ID for content import |
+| `CONTENTFUL_ACCESS_TOKEN` | No | - | Contentful Content Delivery API token |
+| `CONTENTFUL_ENVIRONMENT` | No | - | Contentful environment (e.g. `master`) |
+| `YOUTUBE_API_KEY` | No | - | YouTube Data API v3 key for channel import |
+| `YOUTUBE_CHANNEL_ID` | No | - | YouTube channel ID to import videos from |
 
 ### 4. Set Up Database
 

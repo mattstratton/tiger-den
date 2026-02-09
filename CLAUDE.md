@@ -40,10 +40,6 @@ This is handled automatically by the migration `0003_add_search_path.sql`.
 ## System Requirements
 
 - **Node.js**: v20 or later
-- **yt-dlp**: Required for YouTube transcript extraction
-  - Install: `brew install yt-dlp` (macOS) or `pip install yt-dlp` (Python)
-  - Used for downloading YouTube video transcripts (manual and auto-generated captions)
-  - Fallback: Content items without transcripts will show "Not indexed" status
 
 ## Commands
 
