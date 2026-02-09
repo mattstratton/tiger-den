@@ -5,6 +5,8 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { EmptyState } from "~/components/ui/empty-state";
+import { Loading } from "~/components/ui/loading";
 import {
   Table,
   TableBody,
@@ -62,18 +64,16 @@ export function CampaignsList({ highlightCampaignId }: CampaignsListProps) {
   }, [highlightCampaignId, campaigns?.length]);
 
   if (isLoading) {
-    return <div className="py-8 text-center">Loading campaigns...</div>;
+    return <Loading message="Loading campaigns" />;
   }
 
   if (!campaigns || campaigns.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex justify-end">
-          <Button onClick={handleAddCampaign}>Add Campaign</Button>
-        </div>
-        <div className="py-12 text-center text-muted-foreground">
-          No campaigns found. Create your first campaign to get started.
-        </div>
+        <EmptyState
+          action={{ label: "Create campaign", onClick: handleAddCampaign }}
+          message="No campaigns yet. Create your first campaign to get started."
+        />
         <CampaignFormDialog
           campaignId={editingCampaignId}
           onOpenChange={setDialogOpen}

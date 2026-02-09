@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "~/trpc/react";
+import { Loading } from "~/components/ui/loading";
 
 interface ContentIndexStatusProps {
   contentId: string;
@@ -14,8 +15,8 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
 
   if (isLoading) {
     return (
-      <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 text-xs">
-        Loading...
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-muted-foreground text-xs">
+        <Loading className="gap-1.5" compact message="Loading" />
       </span>
     );
   }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { EmptyState } from "~/components/ui/empty-state";
+import { Loading } from "~/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -511,11 +513,11 @@ function ImportHistorySection() {
       </CardHeader>
       <CardContent>
         {historyQuery.isLoading && (
-          <p className="text-muted-foreground text-sm">Loading history...</p>
+          <Loading message="Loading history" className="py-6" />
         )}
 
-        {historyQuery.data && historyQuery.data.length === 0 && (
-          <p className="text-muted-foreground text-sm">No imports yet.</p>
+        {historyQuery.data && historyQuery.data.length === 0 && !historyQuery.isLoading && (
+          <EmptyState message="No imports yet. Run a bulk import above to get started." />
         )}
 
         {historyQuery.data && historyQuery.data.length > 0 && (
