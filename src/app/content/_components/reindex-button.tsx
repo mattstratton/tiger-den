@@ -39,8 +39,8 @@ export function ReindexButton({ contentId, indexStatus }: ReindexButtonProps) {
   // Determine effective status
   const effectiveStatus = indexStatus ?? fetchedStatus?.indexStatus ?? null;
 
-  // Only show button for failed or pending items
-  if (effectiveStatus !== "failed" && effectiveStatus !== "pending") {
+  // Show nothing while we don't know status (e.g. still loading when indexStatus was null)
+  if (effectiveStatus === null) {
     return null;
   }
 
@@ -49,14 +49,23 @@ export function ReindexButton({ contentId, indexStatus }: ReindexButtonProps) {
     reindexMutation.mutate({ id: contentId });
   };
 
+  const isIndexed = effectiveStatus === "indexed";
+  const label = isIndexed ? "Refresh index" : "Re-index";
+  const busyLabel = isReindexing ? "Reindexing..." : label;
+
   return (
     <Button
       disabled={isReindexing}
       size="sm"
       variant="secondary"
       onClick={handleReindex}
+      title={
+        isIndexed
+          ? "Re-run indexing when the source content has changed"
+          : undefined
+      }
     >
-      {isReindexing ? "Reindexing..." : "Re-index"}
+      {busyLabel}
     </Button>
   );
 }

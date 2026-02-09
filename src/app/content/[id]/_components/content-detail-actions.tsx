@@ -27,13 +27,18 @@ export function ContentDetailActions({
 
   return (
     <div className="flex gap-2">
-      <Button onClick={() => setEditDialogOpen(true)} variant="outline">
+      <Button
+        aria-label="Edit content"
+        onClick={() => setEditDialogOpen(true)}
+        variant="outline"
+      >
         <Pencil className="mr-2 h-4 w-4" />
         Edit
       </Button>
       <Button
+        aria-label="Delete content"
         onClick={() => setDeleteDialogOpen(true)}
-        variant="outline"
+        variant="destructive"
       >
         <Trash2 className="mr-2 h-4 w-4" />
         Delete

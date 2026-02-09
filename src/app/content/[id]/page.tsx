@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "~/components/ui/badge";
@@ -9,8 +9,6 @@ import { format } from "date-fns";
 import { ContentTypeBadge } from "../_components/content-badge";
 import { ContentIndexStatus } from "../_components/content-index-status";
 import { ReindexButton } from "../_components/reindex-button";
-import { ContentFormDialog } from "../_components/content-form-dialog";
-import { DeleteContentDialog } from "../_components/delete-content-dialog";
 import { ContentDetailActions } from "./_components/content-detail-actions";
 
 interface PageProps {
@@ -35,6 +33,13 @@ export default async function ContentDetailPage(props: PageProps) {
     <div className="container mx-auto py-8">
       {/* Header */}
       <div className="mb-6">
+        <Link
+          className="mb-3 inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:underline"
+          href="/content"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to content
+        </Link>
         <div className="mb-2 flex items-center gap-2">
           <Link
             className="text-muted-foreground text-sm hover:underline"
@@ -225,7 +230,8 @@ export default async function ContentDetailPage(props: PageProps) {
                 <ReindexButton contentId={content.id} indexStatus={null} />
               </div>
               <p className="mt-2 text-muted-foreground text-xs">
-                Index status affects full-content search capabilities
+                Index status affects full-content search. Use Refresh index when
+                the source content has changed.
               </p>
             </CardContent>
           </Card>
