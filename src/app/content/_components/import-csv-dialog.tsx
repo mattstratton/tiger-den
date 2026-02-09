@@ -7,11 +7,13 @@ import {
   Database,
   Download,
   Loader2,
+  SearchCheck,
   Upload,
 } from "lucide-react";
 import Papa from "papaparse";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -23,6 +25,67 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Progress } from "~/components/ui/progress";
+import { api } from "~/trpc/react";
+
+const REQUIRED_COLUMNS = ["current_url", "content_type"];
+const CONTENT_TYPES = [
+  "youtube_video",
+  "blog_post",
+  "case_study",
+  "website_content",
+  "third_party",
+  "other",
+] as const;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const URL_REGEX =
+  /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+
+function validateCsvRows(
+  rows: Array<Record<string, unknown>>,
+  headers: string[],
+): Array<{ row: number; message: string; field?: string }> {
+  const errors: Array<{ row: number; message: string; field?: string }> = [];
+  const missingCols = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
+  if (missingCols.length > 0) {
+    errors.push({
+      row: 0,
+      message: `Missing required column(s): ${missingCols.join(", ")}`,
+    });
+    return errors;
+  }
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] as Record<string, unknown> | undefined;
+    if (!row) continue;
+    const rowNum = i + 2;
+    const url = row.current_url;
+    if (url === undefined || url === null || String(url).trim() === "") {
+      errors.push({ row: rowNum, message: "current_url is required", field: "current_url" });
+    } else if (!URL_REGEX.test(String(url).trim())) {
+      errors.push({ row: rowNum, message: "Invalid URL format", field: "current_url" });
+    }
+    const ct = row.content_type;
+    if (ct === undefined || ct === null || String(ct).trim() === "") {
+      errors.push({ row: rowNum, message: "content_type is required", field: "content_type" });
+    } else if (!CONTENT_TYPES.includes(String(ct).trim() as (typeof CONTENT_TYPES)[number])) {
+      errors.push({
+        row: rowNum,
+        message: `content_type must be one of: ${CONTENT_TYPES.join(", ")}`,
+        field: "content_type",
+      });
+    }
+    const pub = row.publish_date;
+    if (pub !== undefined && pub !== null && String(pub).trim() !== "") {
+      if (!DATE_REGEX.test(String(pub).trim())) {
+        errors.push({
+          row: rowNum,
+          message: "publish_date must be YYYY-MM-DD",
+          field: "publish_date",
+        });
+      }
+    }
+  }
+  return errors;
+}
 
 interface ImportCsvDialogProps {
   open: boolean;
@@ -44,10 +107,14 @@ interface ImportResult {
   };
   indexed: number;
   indexingFailed: number;
+  validationOnly?: boolean;
 }
 
 export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
+  const utils = api.useUtils();
+  const validateOnlyInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState<{
     phase: "enriching" | "validating" | "inserting" | null;
@@ -326,12 +393,85 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       eventSource.close();
       setEventSource(null);
     }
+    // Refresh content list so new items appear when they return (6.2)
+    void utils.content.list.invalidate();
     // Reset all state
     setResult(null);
     setProgress(null);
     setImporting(false);
+    setValidating(false);
     onOpenChange(false);
   };
+
+  const handleValidateOnly = () => {
+    validateOnlyInputRef.current?.click();
+  };
+
+  const handleValidateOnlyFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      setValidating(true);
+      setResult(null);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          setValidating(false);
+          const rows = results.data as Array<Record<string, unknown>>;
+          const headers = results.meta.fields ?? [];
+          if (rows.length === 0) {
+            setResult({
+              successful: 0,
+              failed: 0,
+              errors: [{ row: 0, message: "CSV file is empty" }],
+              indexed: 0,
+              indexingFailed: 0,
+              validationOnly: true,
+            });
+            return;
+          }
+          if (rows.length > 1000) {
+            setResult({
+              successful: 0,
+              failed: 0,
+              errors: [
+                { row: 0, message: "CSV exceeds 1000 row limit. Split into smaller files." },
+              ],
+              indexed: 0,
+              indexingFailed: 0,
+              validationOnly: true,
+            });
+            return;
+          }
+          const errors = validateCsvRows(rows, headers);
+          if (errors.length > 0) {
+            setResult({
+              successful: 0,
+              failed: 0,
+              errors,
+              indexed: 0,
+              indexingFailed: 0,
+              validationOnly: true,
+            });
+            toast.error(`Validation found ${errors.length} issue(s)`);
+          } else {
+            setResult({
+              successful: rows.length,
+              failed: 0,
+              errors: [],
+              indexed: 0,
+              indexingFailed: 0,
+              validationOnly: true,
+            });
+            toast.success(`Validation passed: ${rows.length} row(s) ready to import`);
+          }
+        },
+      });
+    },
+    [],
+  );
 
   return (
     <Dialog onOpenChange={handleClose} open={open}>
@@ -339,13 +479,23 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         <DialogHeader>
           <DialogTitle>Import Content from CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to import multiple content items at once.
+            Upload a CSV file to import multiple content items at once. Max 1000
+            rows, 5MB. Use the template for column format.
           </DialogDescription>
         </DialogHeader>
 
+        <input
+          accept=".csv"
+          aria-label="Choose CSV file to validate only (no import)"
+          className="hidden"
+          onChange={handleValidateOnlyFile}
+          ref={validateOnlyInputRef}
+          type="file"
+        />
+
         <div className="space-y-4">
-          {/* Download Template Button */}
-          <div className="flex items-center gap-2">
+          {/* Download Template + Validate only */}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               disabled={importing}
               onClick={handleDownloadTemplate}
@@ -355,8 +505,21 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               <Download className="mr-2 h-4 w-4" />
               Download Template
             </Button>
+            <Button
+              disabled={importing || validating}
+              onClick={handleValidateOnly}
+              size="sm"
+              variant="outline"
+            >
+              {validating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <SearchCheck className="mr-2 h-4 w-4" />
+              )}
+              Validate only
+            </Button>
             <p className="text-muted-foreground text-sm">
-              Download a sample CSV file to see the expected format
+              Check structure and required columns before importing
             </p>
           </div>
 
@@ -466,23 +629,28 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             </div>
           )}
 
-          {/* Import Results */}
+          {/* Import Results / Validation Results */}
           {result && (
             <div className="space-y-4">
               {/* Success Alert */}
               {result.successful > 0 && (
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
-                  <AlertTitle>Import Successful</AlertTitle>
+                  <AlertTitle>
+                    {result.validationOnly
+                      ? "Validation passed"
+                      : "Import Successful"}
+                  </AlertTitle>
                   <AlertDescription>
-                    Successfully imported {result.successful} content{" "}
-                    {result.successful === 1 ? "item" : "items"}.
+                    {result.validationOnly
+                      ? `${result.successful} row(s) are valid and ready to import.`
+                      : `Successfully imported ${result.successful} content ${result.successful === 1 ? "item" : "items"}.`}
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Error Alert */}
-              {result.failed > 0 && (
+              {result.failed > 0 && !result.validationOnly && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Import Errors</AlertTitle>
@@ -496,7 +664,9 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {/* Error List */}
               {result.errors.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Error Details:</h4>
+                  <h4 className="font-medium text-sm">
+                    {result.validationOnly ? "Validation issues:" : "Error Details:"}
+                  </h4>
                   <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-4">
                     {result.errors.map((error, index) => (
                       <div
@@ -516,8 +686,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 </div>
               )}
 
-              {/* Enrichment Results */}
-              {result.enrichment && result.enrichment.attempted > 0 && (
+              {/* Enrichment Results (import only) */}
+              {result.enrichment && result.enrichment.attempted > 0 && !result.validationOnly && (
                 <Alert>
                   <AlertTitle>Title Enrichment</AlertTitle>
                   <AlertDescription>
@@ -529,8 +699,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 </Alert>
               )}
 
-              {/* Indexing Results */}
-              {result.successful > 0 && (
+              {/* Indexing Results (import only) */}
+              {result.successful > 0 && !result.validationOnly && (
                 <Alert>
                   <AlertTitle>Content Indexing</AlertTitle>
                   <AlertDescription>
@@ -551,9 +721,10 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   onClick={() => {
                     setResult(null);
                     setImporting(false);
+                    setValidating(false);
                   }}
                 >
-                  Import Another File
+                  {result.validationOnly ? "Validate another file" : "Import Another File"}
                 </Button>
               </div>
             </div>
