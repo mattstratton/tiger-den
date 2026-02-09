@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { encoding_for_model } from "tiktoken";
 import { indexingConfig } from "~/server/config/indexing-config";
-import { fetchYouTubeTranscriptViaYtdlp } from "./youtube-transcript-ytdlp";
+import { fetchYouTubeTranscriptViaNpm } from "./youtube-transcript-npm";
 
 export interface FetchResult {
   plainText: string;
@@ -149,23 +149,28 @@ async function fetchWebContentStatic(url: string): Promise<FetchResult> {
         '[class*="toolbar"]',
         '[id*="share"]',
         '[id*="copy"]',
-        'button',
+        "button",
       ].join(", "),
     ).remove();
 
     // Part 4: Remove elements by common button text patterns
-    $('*').filter(function() {
-      const text = $(this).text().trim();
-      const buttonPatterns = [
-        /^Copy as /i,
-        /^Open in /i,
-        /^Share on /i,
-        /^Download /i,
-        /^Print$/i,
-        /^Export /i,
-      ];
-      return buttonPatterns.some(pattern => pattern.test(text)) && text.length < 50;
-    }).remove();
+    $("*")
+      .filter(function () {
+        const text = $(this).text().trim();
+        const buttonPatterns = [
+          /^Copy as /i,
+          /^Open in /i,
+          /^Share on /i,
+          /^Download /i,
+          /^Print$/i,
+          /^Export /i,
+        ];
+        return (
+          buttonPatterns.some((pattern) => pattern.test(text)) &&
+          text.length < 50
+        );
+      })
+      .remove();
 
     // Part 5: Extract main content with priority order
     let mainContent = "";
@@ -243,9 +248,7 @@ export async function fetchWebContent(url: string): Promise<FetchResult> {
 }
 
 /**
- * Fetch YouTube transcript using yt-dlp
- * Supports manual captions and auto-generated captions
- * Handles missing transcripts gracefully
+ * Fetch YouTube transcript using innertube API (pure JS, works on Vercel).
  */
 export async function fetchYouTubeTranscript(
   url: string,
@@ -259,8 +262,13 @@ export async function fetchYouTubeTranscript(
       throw new ContentFetchError("Invalid YouTube URL", url);
     }
 
-    // Fetch transcript using yt-dlp
-    const result = await fetchYouTubeTranscriptViaYtdlp(videoId);
+    const result = await fetchYouTubeTranscriptViaNpm(videoId).catch((err) => {
+      console.warn(
+        `[YouTube] Transcript fetch failed for ${videoId}:`,
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    });
 
     // If no transcript available, return empty
     if (!result) {
@@ -271,13 +279,13 @@ export async function fetchYouTubeTranscript(
         wordCount: 0,
         tokenCount: 0,
         duration,
-        finalUrl: url, // YouTube URLs don't redirect
+        finalUrl: url,
         wasRedirected: false,
       };
     }
 
     const plainText = result.text;
-    const fullText = plainText; // No HTML for transcripts
+    const fullText = plainText;
     const wordCount = result.wordCount;
     const tokenCount = await countTokens(plainText);
     const duration = Date.now() - startTime;
@@ -288,12 +296,10 @@ export async function fetchYouTubeTranscript(
       wordCount,
       tokenCount,
       duration,
-      finalUrl: url, // YouTube URLs don't redirect
+      finalUrl: url,
       wasRedirected: false,
     };
   } catch (error) {
-    const duration = Date.now() - startTime;
-
     throw new ContentFetchError(
       error instanceof Error ? error.message : "Unknown error",
       url,

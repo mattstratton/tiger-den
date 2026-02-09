@@ -12,6 +12,11 @@ export const apiConfig = {
     environment: env.CONTENTFUL_ENVIRONMENT ?? "master",
     enabled: !!(env.CONTENTFUL_SPACE_ID && env.CONTENTFUL_ACCESS_TOKEN),
   },
+  youtube: {
+    apiKey: env.YOUTUBE_API_KEY,
+    channelId: env.YOUTUBE_CHANNEL_ID,
+    enabled: !!env.YOUTUBE_API_KEY,
+  },
   import: {
     batchSize: parseInt(env.API_IMPORT_BATCH_SIZE ?? "50", 10),
     delayMs: parseInt(env.API_IMPORT_DELAY_MS ?? "100", 10),

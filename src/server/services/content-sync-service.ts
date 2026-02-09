@@ -9,10 +9,11 @@ import type { Document } from "@contentful/rich-text-types";
 import { eq, or } from "drizzle-orm";
 import { db } from "~/server/db";
 import { contentItems, contentText, contentTypes } from "~/server/db/schema";
-import { countTokens } from "./content-fetcher";
-import { indexFromExistingContent } from "./indexing-orchestrator";
+import { countTokens, fetchYouTubeTranscript } from "./content-fetcher";
+import type { CaseStudyEntry, LearnPageEntry } from "./contentful-api-client";
 import type { GhostPost } from "./ghost-api-client";
-import type { LearnPageEntry, CaseStudyEntry } from "./contentful-api-client";
+import { indexFromExistingContent } from "./indexing-orchestrator";
+import type { YouTubeVideo } from "./youtube-api-client";
 
 // Cache content type IDs
 const contentTypeCache = new Map<string, number>();
@@ -29,7 +30,11 @@ export interface PreviewResult {
   newItems: number;
   updatable: number;
   skipped: number;
-  details: Array<{ title: string; url: string; status: "new" | "update" | "skip" }>;
+  details: Array<{
+    title: string;
+    url: string;
+    status: "new" | "update" | "skip";
+  }>;
 }
 
 function countWords(text: string): number {
@@ -183,10 +188,7 @@ export class ContentSyncService {
 
       // Check if content has changed
       const lastModified = new Date(post.updated_at);
-      if (
-        existing.lastModifiedAt &&
-        existing.lastModifiedAt >= lastModified
-      ) {
+      if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
         result.skipped++;
         return;
       }
@@ -210,19 +212,22 @@ export class ContentSyncService {
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("blog_post");
 
-    const [inserted] = await db.insert(contentItems).values({
-      title: post.title,
-      currentUrl: normalizedUrl,
-      contentTypeId,
-      publishDate: new Date(post.published_at).toISOString().split('T')[0]!, // Date only
-      description: post.excerpt || post.custom_excerpt || undefined,
-      author: post.primary_author?.name || undefined,
-      tags: post.tags?.map((t) => t.name) || [],
-      source: "ghost_api" as const,
-      ghostId: post.id,
-      lastModifiedAt: new Date(post.updated_at),
-      createdByUserId: this.SYSTEM_USER_ID,
-    }).returning({ id: contentItems.id });
+    const [inserted] = await db
+      .insert(contentItems)
+      .values({
+        title: post.title,
+        currentUrl: normalizedUrl,
+        contentTypeId,
+        publishDate: new Date(post.published_at).toISOString().split("T")[0]!, // Date only
+        description: post.excerpt || post.custom_excerpt || undefined,
+        author: post.primary_author?.name || undefined,
+        tags: post.tags?.map((t) => t.name) || [],
+        source: "ghost_api" as const,
+        ghostId: post.id,
+        lastModifiedAt: new Date(post.updated_at),
+        createdByUserId: this.SYSTEM_USER_ID,
+      })
+      .returning({ id: contentItems.id });
 
     if (inserted && post.plaintext) {
       await this.writeContentText(inserted.id, post.plaintext, post.html);
@@ -255,7 +260,7 @@ export class ContentSyncService {
       .set({
         title: post.title,
         currentUrl: normalizedUrl,
-        publishDate: new Date(post.published_at).toISOString().split('T')[0]!, // Date only
+        publishDate: new Date(post.published_at).toISOString().split("T")[0]!, // Date only
         description: post.excerpt || post.custom_excerpt || undefined,
         author: post.primary_author?.name || undefined,
         tags: post.tags?.map((t) => t.name) || [],
@@ -325,10 +330,7 @@ export class ContentSyncService {
 
       // Check if content has changed
       const lastModified = new Date(page.sys.updatedAt);
-      if (
-        existing.lastModifiedAt &&
-        existing.lastModifiedAt >= lastModified
-      ) {
+      if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
         result.skipped++;
         return;
       }
@@ -361,17 +363,22 @@ export class ContentSyncService {
       tagNames.push(String(page.fields.subSection));
     }
 
-    const [inserted] = await db.insert(contentItems).values({
-      title: String(page.fields.title),
-      currentUrl: normalizedUrl,
-      contentTypeId,
-      description: page.fields.metaDescription ? String(page.fields.metaDescription) : undefined,
-      tags: tagNames,
-      source: "contentful_api",
-      contentfulId: page.sys.id,
-      lastModifiedAt: new Date(page.sys.updatedAt),
-      createdByUserId: this.SYSTEM_USER_ID,
-    }).returning({ id: contentItems.id });
+    const [inserted] = await db
+      .insert(contentItems)
+      .values({
+        title: String(page.fields.title),
+        currentUrl: normalizedUrl,
+        contentTypeId,
+        description: page.fields.metaDescription
+          ? String(page.fields.metaDescription)
+          : undefined,
+        tags: tagNames,
+        source: "contentful_api",
+        contentfulId: page.sys.id,
+        lastModifiedAt: new Date(page.sys.updatedAt),
+        createdByUserId: this.SYSTEM_USER_ID,
+      })
+      .returning({ id: contentItems.id });
 
     if (inserted && page.fields.content) {
       const plainText = this.extractRichTextPlain(page.fields.content);
@@ -416,7 +423,9 @@ export class ContentSyncService {
       .set({
         title: String(page.fields.title),
         currentUrl: normalizedUrl,
-        description: page.fields.metaDescription ? String(page.fields.metaDescription) : undefined,
+        description: page.fields.metaDescription
+          ? String(page.fields.metaDescription)
+          : undefined,
         tags: tagNames,
         contentfulId: page.sys.id,
         lastModifiedAt: new Date(page.sys.updatedAt),
@@ -468,10 +477,14 @@ export class ContentSyncService {
     result: SyncResult,
   ): Promise<void> {
     // Use externalLink if available, otherwise construct URL from slug
-    const externalLink = study.fields.externalLink ? String(study.fields.externalLink) : null;
+    const externalLink = study.fields.externalLink
+      ? String(study.fields.externalLink)
+      : null;
     const normalizedUrl = externalLink
       ? externalLink
-      : this.normalizeContentfulUrl(`case-studies/${String(study.fields.slug)}`);
+      : this.normalizeContentfulUrl(
+          `case-studies/${String(study.fields.slug)}`,
+        );
 
     // Skip case studies that link to external (non-tigerdata.com) domains (#16)
     if (!this.isTigerDataUrl(normalizedUrl)) {
@@ -498,10 +511,7 @@ export class ContentSyncService {
 
       // Check if content has changed
       const lastModified = new Date(study.sys.updatedAt);
-      if (
-        existing.lastModifiedAt &&
-        existing.lastModifiedAt >= lastModified
-      ) {
+      if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
         result.skipped++;
         return;
       }
@@ -556,17 +566,20 @@ export class ContentSyncService {
         ? String(study.fields.metaDescription)
         : undefined;
 
-    const [inserted] = await db.insert(contentItems).values({
-      title: String(study.fields.name),
-      currentUrl: normalizedUrl,
-      contentTypeId,
-      description,
-      tags: study.fields.category ? [String(study.fields.category)] : [],
-      source: "contentful_api",
-      contentfulId: study.sys.id,
-      lastModifiedAt: new Date(study.sys.updatedAt),
-      createdByUserId: this.SYSTEM_USER_ID,
-    }).returning({ id: contentItems.id });
+    const [inserted] = await db
+      .insert(contentItems)
+      .values({
+        title: String(study.fields.name),
+        currentUrl: normalizedUrl,
+        contentTypeId,
+        description,
+        tags: study.fields.category ? [String(study.fields.category)] : [],
+        source: "contentful_api",
+        contentfulId: study.sys.id,
+        lastModifiedAt: new Date(study.sys.updatedAt),
+        createdByUserId: this.SYSTEM_USER_ID,
+      })
+      .returning({ id: contentItems.id });
 
     if (inserted && study.fields.content) {
       const plainText = this.extractRichTextPlain(study.fields.content);
@@ -629,7 +642,12 @@ export class ContentSyncService {
    * Preview Ghost posts (read-only matching, no INSERT/UPDATE)
    */
   async previewGhostPosts(posts: GhostPost[]): Promise<PreviewResult> {
-    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+    const result: PreviewResult = {
+      newItems: 0,
+      updatable: 0,
+      skipped: 0,
+      details: [],
+    };
 
     for (const post of posts) {
       const normalizedUrl = this.normalizeGhostUrl(post.url);
@@ -647,20 +665,39 @@ export class ContentSyncService {
       if (existing) {
         if (!this.shouldUpdate(existing.source, "ghost_api")) {
           result.skipped++;
-          result.details.push({ title: post.title, url: normalizedUrl, status: "skip" });
+          result.details.push({
+            title: post.title,
+            url: normalizedUrl,
+            status: "skip",
+          });
         } else {
           const lastModified = new Date(post.updated_at);
-          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+          if (
+            existing.lastModifiedAt &&
+            existing.lastModifiedAt >= lastModified
+          ) {
             result.skipped++;
-            result.details.push({ title: post.title, url: normalizedUrl, status: "skip" });
+            result.details.push({
+              title: post.title,
+              url: normalizedUrl,
+              status: "skip",
+            });
           } else {
             result.updatable++;
-            result.details.push({ title: post.title, url: normalizedUrl, status: "update" });
+            result.details.push({
+              title: post.title,
+              url: normalizedUrl,
+              status: "update",
+            });
           }
         }
       } else {
         result.newItems++;
-        result.details.push({ title: post.title, url: normalizedUrl, status: "new" });
+        result.details.push({
+          title: post.title,
+          url: normalizedUrl,
+          status: "new",
+        });
       }
     }
 
@@ -671,11 +708,18 @@ export class ContentSyncService {
    * Preview Contentful learn pages (read-only matching, no INSERT/UPDATE)
    */
   async previewLearnPages(pages: LearnPageEntry[]): Promise<PreviewResult> {
-    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+    const result: PreviewResult = {
+      newItems: 0,
+      updatable: 0,
+      skipped: 0,
+      details: [],
+    };
 
     for (const page of pages) {
       const title = String(page.fields.title);
-      const normalizedUrl = this.normalizeContentfulUrl(String(page.fields.url));
+      const normalizedUrl = this.normalizeContentfulUrl(
+        String(page.fields.url),
+      );
       const existing = await db.query.contentItems.findFirst({
         where: or(
           eq(contentItems.contentfulId, page.sys.id),
@@ -689,12 +733,19 @@ export class ContentSyncService {
           result.details.push({ title, url: normalizedUrl, status: "skip" });
         } else {
           const lastModified = new Date(page.sys.updatedAt);
-          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+          if (
+            existing.lastModifiedAt &&
+            existing.lastModifiedAt >= lastModified
+          ) {
             result.skipped++;
             result.details.push({ title, url: normalizedUrl, status: "skip" });
           } else {
             result.updatable++;
-            result.details.push({ title, url: normalizedUrl, status: "update" });
+            result.details.push({
+              title,
+              url: normalizedUrl,
+              status: "update",
+            });
           }
         }
       } else {
@@ -710,11 +761,18 @@ export class ContentSyncService {
    * Preview Contentful case studies (read-only matching, no INSERT/UPDATE)
    */
   async previewCaseStudies(studies: CaseStudyEntry[]): Promise<PreviewResult> {
-    const result: PreviewResult = { newItems: 0, updatable: 0, skipped: 0, details: [] };
+    const result: PreviewResult = {
+      newItems: 0,
+      updatable: 0,
+      skipped: 0,
+      details: [],
+    };
 
     for (const study of studies) {
       const title = String(study.fields.name);
-      const externalLink = study.fields.externalLink ? String(study.fields.externalLink) : undefined;
+      const externalLink = study.fields.externalLink
+        ? String(study.fields.externalLink)
+        : undefined;
       const slug = String(study.fields.slug);
       const normalizedUrl = externalLink
         ? externalLink
@@ -740,12 +798,19 @@ export class ContentSyncService {
           result.details.push({ title, url: normalizedUrl, status: "skip" });
         } else {
           const lastModified = new Date(study.sys.updatedAt);
-          if (existing.lastModifiedAt && existing.lastModifiedAt >= lastModified) {
+          if (
+            existing.lastModifiedAt &&
+            existing.lastModifiedAt >= lastModified
+          ) {
             result.skipped++;
             result.details.push({ title, url: normalizedUrl, status: "skip" });
           } else {
             result.updatable++;
-            result.details.push({ title, url: normalizedUrl, status: "update" });
+            result.details.push({
+              title,
+              url: normalizedUrl,
+              status: "update",
+            });
           }
         }
       } else {
@@ -758,12 +823,230 @@ export class ContentSyncService {
   }
 
   /**
+   * Sync YouTube videos to the database
+   */
+  async syncYouTubeVideos(videos: YouTubeVideo[]): Promise<SyncResult> {
+    const result: SyncResult = {
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (const video of videos) {
+      try {
+        await this.syncYouTubeVideo(video, result);
+      } catch (error) {
+        result.failed++;
+        result.errors.push({
+          item: `YouTube video: ${video.title}`,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Sync a single YouTube video
+   */
+  private async syncYouTubeVideo(
+    video: YouTubeVideo,
+    result: SyncResult,
+  ): Promise<void> {
+    // Find existing content by YouTube video ID or URL
+    const existing = await db.query.contentItems.findFirst({
+      where: or(
+        eq(contentItems.youtubeVideoId, video.id),
+        eq(contentItems.currentUrl, video.url),
+      ),
+    });
+
+    if (existing) {
+      if (!this.shouldUpdate(existing.source, "youtube_api")) {
+        result.skipped++;
+        return;
+      }
+
+      // Check if content has changed via publishedAt (YouTube doesn't have updatedAt)
+      const publishedDate = new Date(video.publishedAt);
+      if (
+        existing.lastModifiedAt &&
+        existing.lastModifiedAt >= publishedDate &&
+        existing.youtubeVideoId === video.id
+      ) {
+        result.skipped++;
+        return;
+      }
+
+      await this.updateYouTubeVideo(existing.id, video);
+      result.updated++;
+    } else {
+      await this.createYouTubeVideo(video);
+      result.created++;
+    }
+  }
+
+  /**
+   * Create a new YouTube video record and fetch transcript
+   */
+  private async createYouTubeVideo(video: YouTubeVideo): Promise<void> {
+    const contentTypeId = await this.getContentTypeId("youtube_video");
+
+    const [inserted] = await db
+      .insert(contentItems)
+      .values({
+        title: video.title,
+        currentUrl: video.url,
+        contentTypeId,
+        publishDate: new Date(video.publishedAt).toISOString().split("T")[0]!,
+        description: video.description || undefined,
+        author: video.channelTitle || undefined,
+        tags: video.tags.length > 0 ? video.tags : [],
+        source: "youtube_api" as const,
+        youtubeVideoId: video.id,
+        lastModifiedAt: new Date(video.publishedAt),
+        createdByUserId: this.SYSTEM_USER_ID,
+      })
+      .returning({ id: contentItems.id });
+
+    // Fetch transcript and write content_text so it gets chunked + embedded
+    if (inserted) {
+      await this.fetchAndWriteTranscript(inserted.id, video.url);
+    }
+  }
+
+  /**
+   * Update an existing YouTube video record
+   */
+  private async updateYouTubeVideo(
+    itemId: string,
+    video: YouTubeVideo,
+  ): Promise<void> {
+    const existing = await db.query.contentItems.findFirst({
+      where: eq(contentItems.id, itemId),
+    });
+    if (!existing) return;
+
+    const urlChanged = existing.currentUrl !== video.url;
+    const previousUrls = urlChanged
+      ? [...(existing.previousUrls || []), existing.currentUrl]
+      : existing.previousUrls;
+
+    await db
+      .update(contentItems)
+      .set({
+        title: video.title,
+        currentUrl: video.url,
+        publishDate: new Date(video.publishedAt).toISOString().split("T")[0]!,
+        description: video.description || undefined,
+        author: video.channelTitle || undefined,
+        tags: video.tags.length > 0 ? video.tags : [],
+        youtubeVideoId: video.id,
+        lastModifiedAt: new Date(video.publishedAt),
+        ...(urlChanged && { previousUrls }),
+      })
+      .where(eq(contentItems.id, itemId));
+
+    // Re-fetch transcript on update
+    await this.fetchAndWriteTranscript(itemId, video.url);
+  }
+
+  /**
+   * Preview YouTube videos (read-only matching, no INSERT/UPDATE)
+   */
+  async previewYouTubeVideos(videos: YouTubeVideo[]): Promise<PreviewResult> {
+    const result: PreviewResult = {
+      newItems: 0,
+      updatable: 0,
+      skipped: 0,
+      details: [],
+    };
+
+    for (const video of videos) {
+      const existing = await db.query.contentItems.findFirst({
+        where: or(
+          eq(contentItems.youtubeVideoId, video.id),
+          eq(contentItems.currentUrl, video.url),
+        ),
+      });
+
+      if (existing) {
+        if (!this.shouldUpdate(existing.source, "youtube_api")) {
+          result.skipped++;
+          result.details.push({
+            title: video.title,
+            url: video.url,
+            status: "skip",
+          });
+        } else {
+          const publishedDate = new Date(video.publishedAt);
+          if (
+            existing.lastModifiedAt &&
+            existing.lastModifiedAt >= publishedDate &&
+            existing.youtubeVideoId === video.id
+          ) {
+            result.skipped++;
+            result.details.push({
+              title: video.title,
+              url: video.url,
+              status: "skip",
+            });
+          } else {
+            result.updatable++;
+            result.details.push({
+              title: video.title,
+              url: video.url,
+              status: "update",
+            });
+          }
+        }
+      } else {
+        result.newItems++;
+        result.details.push({
+          title: video.title,
+          url: video.url,
+          status: "new",
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Fetch transcript for a YouTube video and write it to content_text
+   */
+  private async fetchAndWriteTranscript(
+    contentItemId: string,
+    url: string,
+  ): Promise<void> {
+    try {
+      const fetchResult = await fetchYouTubeTranscript(url);
+      if (fetchResult.plainText) {
+        await this.writeContentText(contentItemId, fetchResult.plainText);
+      }
+    } catch (error) {
+      console.warn(
+        `[YouTube] Failed to fetch transcript for ${url}:`,
+        error instanceof Error ? error.message : error,
+      );
+      // Don't fail the sync — video is imported with metadata but not indexed
+    }
+  }
+
+  /**
    * Check if a URL belongs to tigerdata.com
    */
   private isTigerDataUrl(url: string): boolean {
     try {
       const parsed = new URL(url);
-      return parsed.hostname === "www.tigerdata.com" || parsed.hostname === "tigerdata.com";
+      return (
+        parsed.hostname === "www.tigerdata.com" ||
+        parsed.hostname === "tigerdata.com"
+      );
     } catch {
       return false;
     }
@@ -774,14 +1057,16 @@ export class ContentSyncService {
    */
   private shouldUpdate(
     existingSource: string,
-    newSource: "ghost_api" | "contentful_api",
+    newSource: "ghost_api" | "contentful_api" | "youtube_api",
   ): boolean {
     // Only update if existing source is the same API or if it's manual/csv
     // Don't update if it's from a different API
-    if (existingSource === "ghost_api" && newSource === "contentful_api") {
-      return false;
-    }
-    if (existingSource === "contentful_api" && newSource === "ghost_api") {
+    const apiSources = ["ghost_api", "contentful_api", "youtube_api"];
+    if (
+      apiSources.includes(existingSource) &&
+      apiSources.includes(newSource) &&
+      existingSource !== newSource
+    ) {
       return false;
     }
     return true;

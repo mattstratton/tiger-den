@@ -64,6 +64,13 @@
       "when": 1738786200000,
       "tag": "0008_add_api_integration_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1738872600000,
+      "tag": "0009_add_youtube_fields",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,7 @@ export const sourceEnum = tigerDenSchema.enum("source", [
   "asana_webhook",
   "ghost_api",
   "contentful_api",
+  "youtube_api",
 ]);
 
 export const indexStatusEnum = tigerDenSchema.enum("index_status", [
@@ -183,6 +184,7 @@ export const contentItems = tigerDenSchema.table(
     lastModifiedAt: timestamp("last_modified_at", { withTimezone: true }),
     ghostId: text("ghost_id"),
     contentfulId: text("contentful_id"),
+    youtubeVideoId: text("youtube_video_id"),
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -202,6 +204,9 @@ export const contentItems = tigerDenSchema.table(
     ghostIdIdx: index("content_items_ghost_id_idx").on(table.ghostId),
     contentfulIdIdx: index("content_items_contentful_id_idx").on(
       table.contentfulId,
+    ),
+    youtubeVideoIdIdx: index("content_items_youtube_video_id_idx").on(
+      table.youtubeVideoId,
     ),
     lastModifiedAtIdx: index("content_items_last_modified_at_idx").on(
       table.lastModifiedAt,

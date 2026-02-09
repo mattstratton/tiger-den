@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
+import { adminProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { apiImportService } from "~/server/services/api-import-service";
 
 const importSourceSchema = z.enum([
   "ghost",
   "contentful_learn",
   "contentful_case_study",
+  "youtube_channel",
 ]);
 
 export const apiImportRouter = createTRPCRouter({

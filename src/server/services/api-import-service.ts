@@ -4,29 +4,32 @@
  */
 
 import { desc } from "drizzle-orm";
+import { apiConfig } from "~/server/config/api-config";
 import { db } from "~/server/db";
 import { apiImportLogs } from "~/server/db/schema";
-import { apiConfig } from "~/server/config/api-config";
-import { ghostClient } from "./ghost-api-client";
-import {
-  contentfulClient,
-  type LearnPageSkeleton,
-  type CaseStudySkeleton,
-} from "./contentful-api-client";
 import {
   contentSyncService,
-  type SyncResult,
   type PreviewResult,
+  type SyncResult,
 } from "./content-sync-service";
+import {
+  type CaseStudySkeleton,
+  contentfulClient,
+  type LearnPageSkeleton,
+} from "./contentful-api-client";
+import { ghostClient } from "./ghost-api-client";
+import { youtubeClient } from "./youtube-api-client";
 
 export type ImportSource =
   | "ghost"
   | "contentful_learn"
-  | "contentful_case_study";
+  | "contentful_case_study"
+  | "youtube_channel";
 
 export interface ConnectionStatus {
   ghost: { enabled: boolean; connected: boolean; error?: string };
   contentful: { enabled: boolean; connected: boolean; error?: string };
+  youtube: { enabled: boolean; connected: boolean; error?: string };
 }
 
 export interface SingleItemResult {
@@ -67,12 +70,15 @@ class ApiImportService {
    * Test connections to both Ghost and Contentful APIs
    */
   async testConnections(): Promise<ConnectionStatus> {
-    const [ghostResult, contentfulResult] = await Promise.all([
+    const [ghostResult, contentfulResult, youtubeResult] = await Promise.all([
       ghostClient.isEnabled()
         ? ghostClient.testConnection()
         : Promise.resolve({ success: false, error: "Not configured" }),
       contentfulClient.isEnabled()
         ? contentfulClient.testConnection()
+        : Promise.resolve({ success: false, error: "Not configured" }),
+      youtubeClient.isEnabled()
+        ? youtubeClient.testConnection()
         : Promise.resolve({ success: false, error: "Not configured" }),
     ]);
 
@@ -86,6 +92,11 @@ class ApiImportService {
         enabled: contentfulClient.isEnabled(),
         connected: contentfulResult.success,
         error: contentfulResult.error,
+      },
+      youtube: {
+        enabled: youtubeClient.isEnabled(),
+        connected: youtubeResult.success,
+        error: youtubeResult.error,
       },
     };
   }
@@ -128,9 +139,19 @@ class ApiImportService {
         return {
           title: String(entry.fields.name),
           url:
-            (entry.fields.externalLink ? String(entry.fields.externalLink) : null) ??
-            `case-studies/${String(entry.fields.slug)}`,
+            (entry.fields.externalLink
+              ? String(entry.fields.externalLink)
+              : null) ?? `case-studies/${String(entry.fields.slug)}`,
           raw: entry,
+        };
+      }
+      case "youtube_channel": {
+        const video = await youtubeClient.fetchVideoById(identifier);
+        if (!video) return null;
+        return {
+          title: video.title,
+          url: video.url,
+          raw: video,
         };
       }
     }
@@ -162,6 +183,12 @@ class ApiImportService {
           : await contentfulClient.fetchAllCaseStudies();
         return contentSyncService.previewCaseStudies(studies);
       }
+      case "youtube_channel": {
+        const videos = await youtubeClient.fetchChannelVideos({
+          since: options?.since,
+        });
+        return contentSyncService.previewYouTubeVideos(videos);
+      }
     }
   }
 
@@ -180,8 +207,7 @@ class ApiImportService {
       const preview = await this.fetchPreview(source, {
         since: options?.since,
       });
-      const totalItems =
-        preview.newItems + preview.updatable + preview.skipped;
+      const totalItems = preview.newItems + preview.updatable + preview.skipped;
 
       // Log the dry run
       await db.insert(apiImportLogs).values({
@@ -246,8 +272,7 @@ class ApiImportService {
       updatedCount: mergedResult.updated,
       skippedCount: mergedResult.skipped,
       failedCount: mergedResult.failed,
-      errorDetails:
-        mergedResult.errors.length > 0 ? mergedResult.errors : null,
+      errorDetails: mergedResult.errors.length > 0 ? mergedResult.errors : null,
       dryRun: false,
       initiatedByUserId: userId,
       completedAt: new Date(),
@@ -301,6 +326,8 @@ class ApiImportService {
         return since
           ? contentfulClient.fetchCaseStudiesSince(since)
           : contentfulClient.fetchAllCaseStudies();
+      case "youtube_channel":
+        return youtubeClient.fetchChannelVideos({ since });
     }
   }
 
@@ -320,6 +347,10 @@ class ApiImportService {
       case "contentful_case_study":
         return contentSyncService.syncCaseStudies(
           chunk as Parameters<typeof contentSyncService.syncCaseStudies>[0],
+        );
+      case "youtube_channel":
+        return contentSyncService.syncYouTubeVideos(
+          chunk as Parameters<typeof contentSyncService.syncYouTubeVideos>[0],
         );
     }
   }

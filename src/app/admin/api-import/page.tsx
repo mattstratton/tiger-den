@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/trpc/react";
-import { Button } from "~/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { Checkbox } from "~/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -23,14 +29,19 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { api } from "~/trpc/react";
 
-type ImportSource = "ghost" | "contentful_learn" | "contentful_case_study";
+type ImportSource =
+  | "ghost"
+  | "contentful_learn"
+  | "contentful_case_study"
+  | "youtube_channel";
 
 const SOURCE_LABELS: Record<ImportSource, string> = {
   ghost: "Ghost (Blog)",
   contentful_learn: "Contentful (Learn)",
   contentful_case_study: "Contentful (Case Studies)",
+  youtube_channel: "YouTube (Channel)",
 };
 
 export default function ApiImportPage() {
@@ -39,7 +50,7 @@ export default function ApiImportPage() {
       <div>
         <h2 className="font-bold text-2xl">API Import</h2>
         <p className="text-muted-foreground">
-          Import content from Ghost and Contentful APIs
+          Import content from Ghost, Contentful, and YouTube APIs
         </p>
       </div>
 
@@ -63,13 +74,13 @@ function ConnectionStatusSection() {
       <CardHeader>
         <CardTitle>Connection Status</CardTitle>
         <CardDescription>
-          Test connectivity to Ghost and Contentful APIs
+          Test connectivity to Ghost, Contentful, and YouTube APIs
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button
-          onClick={() => connectionQuery.refetch()}
           disabled={connectionQuery.isFetching}
+          onClick={() => connectionQuery.refetch()}
         >
           {connectionQuery.isFetching ? "Testing..." : "Test Connections"}
         </Button>
@@ -119,6 +130,29 @@ function ConnectionStatusSection() {
               {connectionQuery.data.contentful.error && (
                 <span className="text-muted-foreground text-sm">
                   {connectionQuery.data.contentful.error}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-24 font-medium">YouTube</span>
+              <Badge
+                variant={
+                  connectionQuery.data.youtube.connected
+                    ? "default"
+                    : connectionQuery.data.youtube.enabled
+                      ? "destructive"
+                      : "secondary"
+                }
+              >
+                {connectionQuery.data.youtube.connected
+                  ? "Connected"
+                  : connectionQuery.data.youtube.enabled
+                    ? "Failed"
+                    : "Not configured"}
+              </Badge>
+              {connectionQuery.data.youtube.error && (
+                <span className="text-muted-foreground text-sm">
+                  {connectionQuery.data.youtube.error}
                 </span>
               )}
             </div>
@@ -187,8 +221,8 @@ function SingleItemTesterSection() {
         <div className="flex gap-3">
           <div className="w-56">
             <Select
-              value={source}
               onValueChange={(v) => setSource(v as ImportSource)}
+              value={source}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -203,17 +237,22 @@ function SingleItemTesterSection() {
             </Select>
           </div>
           <Input
+            className="max-w-sm"
+            onChange={(e) => setIdentifier(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
             placeholder={
               source === "ghost"
                 ? "Enter slug or ID"
-                : "Enter Contentful entry ID"
+                : source === "youtube_channel"
+                  ? "Enter video ID"
+                  : "Enter Contentful entry ID"
             }
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-            className="max-w-sm"
           />
-          <Button onClick={handleFetch} disabled={loading || !identifier.trim()}>
+          <Button
+            disabled={loading || !identifier.trim()}
+            onClick={handleFetch}
+          >
             {loading ? "Fetching..." : "Fetch"}
           </Button>
         </div>
@@ -234,9 +273,9 @@ function SingleItemTesterSection() {
               <span className="font-medium">URL:</span> {result.url}
             </p>
             <Button
-              variant="outline"
-              size="sm"
               onClick={() => setShowRaw(!showRaw)}
+              size="sm"
+              variant="outline"
             >
               {showRaw ? "Hide" : "Show"} Raw Data
             </Button>
@@ -317,8 +356,8 @@ function BulkImportSection() {
           <div>
             <Label className="mb-1 block text-sm">Source</Label>
             <Select
-              value={source}
               onValueChange={(v) => setSource(v as ImportSource)}
+              value={source}
             >
               <SelectTrigger className="w-56">
                 <SelectValue />
@@ -333,21 +372,23 @@ function BulkImportSection() {
             </Select>
           </div>
           <div>
-            <Label className="mb-1 block text-sm">Updated since (optional)</Label>
+            <Label className="mb-1 block text-sm">
+              Updated since (optional)
+            </Label>
             <Input
+              className="w-44"
+              onChange={(e) => setSinceDate(e.target.value)}
               type="date"
               value={sinceDate}
-              onChange={(e) => setSinceDate(e.target.value)}
-              className="w-44"
             />
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
-              id="dryRun"
               checked={dryRun}
+              id="dryRun"
               onCheckedChange={(checked) => setDryRun(checked === true)}
             />
-            <Label htmlFor="dryRun" className="text-sm">
+            <Label className="text-sm" htmlFor="dryRun">
               Dry run
             </Label>
           </div>
@@ -355,16 +396,13 @@ function BulkImportSection() {
 
         <div className="flex gap-2">
           <Button
-            variant="outline"
-            onClick={handlePreview}
             disabled={previewLoading}
+            onClick={handlePreview}
+            variant="outline"
           >
             {previewLoading ? "Loading preview..." : "Preview"}
           </Button>
-          <Button
-            onClick={handleImport}
-            disabled={importMutation.isPending}
-          >
+          <Button disabled={importMutation.isPending} onClick={handleImport}>
             {importMutation.isPending ? "Importing..." : "Import"}
           </Button>
         </div>
@@ -378,16 +416,30 @@ function BulkImportSection() {
 
         {previewResult && (
           <div className="grid grid-cols-3 gap-4">
-            <StatsCard label="New" value={previewResult.newItems} color="text-green-600" />
-            <StatsCard label="Updates" value={previewResult.updatable} color="text-blue-600" />
-            <StatsCard label="Skipped" value={previewResult.skipped} color="text-muted-foreground" />
+            <StatsCard
+              color="text-green-600"
+              label="New"
+              value={previewResult.newItems}
+            />
+            <StatsCard
+              color="text-blue-600"
+              label="Updates"
+              value={previewResult.updatable}
+            />
+            <StatsCard
+              color="text-muted-foreground"
+              label="Skipped"
+              value={previewResult.skipped}
+            />
           </div>
         )}
 
         {importMutation.isSuccess && (
           <Alert>
             <AlertTitle>
-              {importMutation.data.dryRun ? "Dry Run Complete" : "Import Complete"}
+              {importMutation.data.dryRun
+                ? "Dry Run Complete"
+                : "Import Complete"}
             </AlertTitle>
             <AlertDescription>
               <p>
@@ -399,7 +451,7 @@ function BulkImportSection() {
               </p>
               {importMutation.data.errors.length > 0 && (
                 <details className="mt-2">
-                  <summary className="cursor-pointer text-sm font-medium">
+                  <summary className="cursor-pointer font-medium text-sm">
                     {importMutation.data.errors.length} error(s)
                   </summary>
                   <ul className="mt-1 list-disc pl-5 text-sm">
@@ -418,9 +470,7 @@ function BulkImportSection() {
         {importMutation.isError && (
           <Alert variant="destructive">
             <AlertTitle>Import Error</AlertTitle>
-            <AlertDescription>
-              {importMutation.error.message}
-            </AlertDescription>
+            <AlertDescription>{importMutation.error.message}</AlertDescription>
           </Alert>
         )}
       </CardContent>
