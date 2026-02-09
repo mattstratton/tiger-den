@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "~/components/ui/badge";
 import {
   Select,
@@ -16,6 +18,16 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { api } from "~/trpc/react";
 
 const roleColors = {
@@ -31,16 +43,22 @@ const roleLabels = {
 };
 
 export default function UsersPage() {
+  const [roleChangePending, setRoleChangePending] = useState<{
+    userId: string;
+    newRole: "admin" | "contributor" | "reader";
+  } | null>(null);
+
   const { data: users } = api.users.list.useQuery();
-  const { data: myRole } = api.users.getMyRole.useQuery();
   const utils = api.useUtils();
 
   const updateRoleMutation = api.users.updateRole.useMutation({
     onSuccess: () => {
       void utils.users.list.invalidate();
+      setRoleChangePending(null);
+      toast.success("Role updated");
     },
     onError: (error) => {
-      alert(error.message || "Failed to update role");
+      toast.error(error.message ?? "Failed to update role");
     },
   });
 
@@ -48,15 +66,15 @@ export default function UsersPage() {
     userId: string,
     newRole: "admin" | "contributor" | "reader",
   ) => {
-    if (
-      !confirm(
-        `Are you sure you want to change this user's role to ${roleLabels[newRole]}?`,
-      )
-    ) {
-      return;
-    }
+    setRoleChangePending({ userId, newRole });
+  };
 
-    updateRoleMutation.mutate({ userId, role: newRole });
+  const confirmRoleChange = () => {
+    if (!roleChangePending) return;
+    updateRoleMutation.mutate({
+      userId: roleChangePending.userId,
+      role: roleChangePending.newRole,
+    });
   };
 
   return (
@@ -138,6 +156,29 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) setRoleChangePending(null);
+        }}
+        open={!!roleChangePending}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change user role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {roleChangePending &&
+                `Are you sure you want to change this user's role to ${roleLabels[roleChangePending.newRole]}?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRoleChange}>
+              Change role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

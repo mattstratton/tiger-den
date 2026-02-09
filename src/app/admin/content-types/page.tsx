@@ -2,6 +2,7 @@
 
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,9 +42,10 @@ export default function ContentTypesPage() {
     onSuccess: () => {
       void utils.contentTypes.list.invalidate();
       setDeletingType(null);
+      toast.success("Content type deleted");
     },
     onError: (error) => {
-      console.error("Failed to delete content type:", error);
+      toast.error(error.message ?? "Failed to delete content type");
     },
   });
 
@@ -52,9 +54,12 @@ export default function ContentTypesPage() {
       onSuccess: () => {
         void utils.contentTypes.list.invalidate();
         setDeletingType(null);
+        toast.success("Content type deleted; items reassigned");
       },
       onError: (error) => {
-        console.error("Failed to reassign and delete content type:", error);
+        toast.error(
+          error.message ?? "Failed to reassign and delete content type",
+        );
       },
     });
 
@@ -64,18 +69,16 @@ export default function ContentTypesPage() {
     isSystem: boolean;
   }) => {
     if (type.isSystem) {
-      alert("System content types cannot be deleted");
+      toast.error("System content types cannot be deleted");
       return;
     }
 
-    // Fetch usage count
     try {
       const { count } =
         await utils.contentTypes.getUsageCount.fetch({ id: type.id });
       setDeletingType({ id: type.id, name: type.name, usageCount: count });
-    } catch (error) {
-      console.error("Failed to fetch usage count:", error);
-      alert("Failed to check usage count");
+    } catch {
+      toast.error("Failed to check usage count");
     }
   };
 
@@ -83,10 +86,9 @@ export default function ContentTypesPage() {
     if (!deletingType) return;
 
     if (deletingType.usageCount > 0) {
-      // Find the "Other" system type to reassign items to
       const otherType = contentTypes?.find((ct) => ct.isSystem);
       if (!otherType) {
-        alert("Cannot find system content type for reassignment");
+        toast.error("Cannot find system content type for reassignment");
         return;
       }
 
@@ -209,8 +211,11 @@ export default function ContentTypesPage() {
                   <br />
                   <br />
                   Clicking &quot;Delete and Reassign&quot; will move all items
-                  to the &quot;Other&quot; category and delete this content
-                  type.
+                  to{" "}
+                  <strong>
+                    {contentTypes?.find((ct) => ct.isSystem)?.name ?? "Other"}
+                  </strong>{" "}
+                  and delete this content type.
                 </>
               )}
             </AlertDialogDescription>
