@@ -5,7 +5,10 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
+
+const LAST_CONTENT_TYPE_KEY = "tiger-den-last-content-type-id";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -86,7 +89,22 @@ export function ContentFormDialog({
     },
   });
 
-  // Reset form when editing existing content
+  // Default content type: remember last-used (5.1)
+  const defaultContentTypeId = (() => {
+    if (!contentTypes?.length) return undefined;
+    try {
+      const saved = localStorage.getItem(LAST_CONTENT_TYPE_KEY);
+      if (saved) {
+        const id = parseInt(saved, 10);
+        if (contentTypes.some((t) => t.id === id)) return id;
+      }
+    } catch {
+      /* ignore */
+    }
+    return contentTypes[0]?.id;
+  })();
+
+  // Reset form when editing existing content or when opening for create
   useEffect(() => {
     if (existingContent) {
       form.reset({
@@ -100,20 +118,31 @@ export function ContentFormDialog({
         tags: existingContent.tags?.join(", ") ?? "",
         campaignIds: existingContent.campaigns.map((cc) => cc.campaign.id),
       });
-    } else {
+    } else if (contentTypes?.length) {
       form.reset({
-        contentTypeId: contentTypes?.[0]?.id ?? 1,
+        contentTypeId: defaultContentTypeId ?? contentTypes[0]?.id ?? 1,
         title: "",
         currentUrl: "",
       });
     }
-  }, [existingContent, contentTypes, form]);
+  }, [existingContent, contentTypes, form, defaultContentTypeId]);
 
   const createMutation = api.content.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      if (variables.contentTypeId != null) {
+        try {
+          localStorage.setItem(
+            LAST_CONTENT_TYPE_KEY,
+            String(variables.contentTypeId),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
       utils.content.list.invalidate();
       onOpenChange(false);
       form.reset();
+      toast.success("Content created");
     },
   });
 
@@ -121,6 +150,7 @@ export function ContentFormDialog({
     onSuccess: () => {
       utils.content.list.invalidate();
       onOpenChange(false);
+      toast.success("Content updated");
     },
   });
 
@@ -142,6 +172,17 @@ export function ContentFormDialog({
     }
   };
 
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const count = Object.keys(errors).length;
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey) {
+      form.setFocus(firstKey as keyof ContentFormValues);
+    }
+    toast.error(
+      count === 1 ? "Please fix 1 error" : `Please fix ${count} errors`,
+    );
+  };
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -152,7 +193,10 @@ export function ContentFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            className="space-y-6"
+            onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+          >
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="font-semibold text-sm">Basic Information</h3>
