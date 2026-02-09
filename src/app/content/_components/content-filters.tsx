@@ -31,12 +31,16 @@ interface ContentFiltersProps {
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    publishDateFrom: string;
+    publishDateTo: string;
   };
   onFiltersChange: (filters: {
     search: string;
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    publishDateFrom: string;
+    publishDateTo: string;
   }) => void;
 }
 
@@ -64,7 +68,9 @@ export function ContentFilters({
   const hasActiveFilters =
     filters.search.length > 0 ||
     filters.contentTypeIds.length > 0 ||
-    filters.campaignIds.length > 0;
+    filters.campaignIds.length > 0 ||
+    filters.publishDateFrom.length > 0 ||
+    filters.publishDateTo.length > 0;
 
   const handleClearFilters = () => {
     onFiltersChange({
@@ -72,6 +78,8 @@ export function ContentFilters({
       searchMode: "metadata",
       contentTypeIds: [],
       campaignIds: [],
+      publishDateFrom: "",
+      publishDateTo: "",
     });
   };
 
@@ -187,6 +195,29 @@ export function ContentFilters({
             </SelectContent>
           </Select>
 
+          <div className="flex items-center gap-2">
+            <Input
+              aria-label="Publish date from"
+              className="w-[140px]"
+              onChange={(e) =>
+                onFiltersChange({ ...filters, publishDateFrom: e.target.value })
+              }
+              placeholder="From (YYYY-MM-DD)"
+              type="date"
+              value={filters.publishDateFrom}
+            />
+            <Input
+              aria-label="Publish date to"
+              className="w-[140px]"
+              onChange={(e) =>
+                onFiltersChange({ ...filters, publishDateTo: e.target.value })
+              }
+              placeholder="To (YYYY-MM-DD)"
+              type="date"
+              value={filters.publishDateTo}
+            />
+          </div>
+
           {hasActiveFilters && (
             <Button
               aria-label="Clear all filters"
@@ -203,7 +234,14 @@ export function ContentFilters({
             <Button onClick={() => setShowImportDialog(true)} variant="outline">
               Import CSV
             </Button>
-            <Button variant="outline">Export CSV</Button>
+            <span className="flex items-center gap-2">
+              <Button disabled variant="outline">
+                Export CSV
+              </Button>
+              <span className="text-muted-foreground text-xs">
+                Coming soon
+              </span>
+            </span>
             <Button
               className="ml-2"
               onClick={() => setShowDeleteAllDialog(true)}

@@ -1,16 +1,15 @@
 import { ArrowRight, FileText, FolderKanban, Upload } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { auth, signIn } from "~/server/auth";
 import { HydrateClient } from "~/trpc/server";
+import { Dashboard } from "./_components/dashboard";
 
 export default async function Home() {
   const session = await auth();
 
-  // Redirect to content page if already signed in
   if (session) {
-    redirect("/content");
+    return <Dashboard session={session} />;
   }
 
   return (

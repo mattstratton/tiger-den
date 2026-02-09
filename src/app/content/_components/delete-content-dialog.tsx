@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { api } from "~/trpc/react";
 
 interface DeleteContentDialogProps {
@@ -47,7 +48,7 @@ export function DeleteContentDialog({
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogContent>
+        <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -55,6 +56,13 @@ export function DeleteContentDialog({
             cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {deleteMutation.isError && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {deleteMutation.error.message}
+            </AlertDescription>
+          </Alert>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleteMutation.isPending}>
             Cancel

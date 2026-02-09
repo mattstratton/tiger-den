@@ -29,6 +29,8 @@ interface ContentTableProps {
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    publishDateFrom: string;
+    publishDateTo: string;
   };
 }
 
@@ -44,7 +46,13 @@ export function ContentTable({ filters }: ContentTableProps) {
   // Reset page to 0 when filters change
   useEffect(() => {
     setPage(0);
-  }, []);
+  }, [
+    filters.search,
+    filters.contentTypeIds,
+    filters.campaignIds,
+    filters.publishDateFrom,
+    filters.publishDateTo,
+  ]);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -68,6 +76,10 @@ export function ContentTable({ filters }: ContentTableProps) {
         filters.contentTypeIds.length > 0 ? filters.contentTypeIds : undefined,
       campaignIds:
         filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
+      publishDateFrom:
+        filters.publishDateFrom.length > 0 ? filters.publishDateFrom : undefined,
+      publishDateTo:
+        filters.publishDateTo.length > 0 ? filters.publishDateTo : undefined,
       limit: pageSize,
       offset: page * pageSize,
     },

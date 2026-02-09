@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -17,7 +17,11 @@ import { api } from "~/trpc/react";
 import { CampaignFormDialog } from "./campaign-form-dialog";
 import { DeleteCampaignDialog } from "./delete-campaign-dialog";
 
-export function CampaignsList() {
+interface CampaignsListProps {
+  highlightCampaignId?: string;
+}
+
+export function CampaignsList({ highlightCampaignId }: CampaignsListProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<
     string | undefined
@@ -49,6 +53,13 @@ export function CampaignsList() {
     setDeletingCampaign({ id: campaignId, name: campaignName, contentCount });
     setDeleteDialogOpen(true);
   };
+
+  // Scroll to and highlight campaign when ?highlight= is present
+  useEffect(() => {
+    if (!highlightCampaignId) return;
+    const el = document.getElementById(`campaign-row-${highlightCampaignId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightCampaignId, campaigns?.length]);
 
   if (isLoading) {
     return <div className="py-8 text-center">Loading campaigns...</div>;
@@ -100,8 +111,14 @@ export function CampaignsList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {campaigns.map((campaign) => (
-              <TableRow key={campaign.id}>
+            {campaigns.map((campaign) => {
+              const isHighlighted = highlightCampaignId === campaign.id;
+              return (
+              <TableRow
+                id={isHighlighted ? `campaign-row-${campaign.id}` : undefined}
+                key={campaign.id}
+                className={isHighlighted ? "bg-primary/10" : undefined}
+              >
                 <TableCell className="font-medium">{campaign.name}</TableCell>
                 <TableCell>{campaign.description || "-"}</TableCell>
                 <TableCell>
@@ -143,7 +160,8 @@ export function CampaignsList() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            );
+            })}
           </TableBody>
         </Table>
       </div>

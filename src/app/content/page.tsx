@@ -10,6 +10,8 @@ export default function ContentPage() {
     searchMode: "metadata" as "metadata" | "keyword" | "fullContent",
     contentTypeIds: [] as number[],
     campaignIds: [] as string[],
+    publishDateFrom: "",
+    publishDateTo: "",
   });
 
   return (

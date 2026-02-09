@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
+import { AdminNav } from "./_components/admin-nav";
 
 export default async function AdminLayout({
   children,
@@ -20,32 +20,7 @@ export default async function AdminLayout({
 
       {/* Admin sub-navigation */}
       <div className="mb-6 border-b">
-        <nav className="flex gap-6">
-          <Link
-            className="border-b-2 border-transparent pb-2 hover:border-gray-300"
-            href="/admin/content-types"
-          >
-            Content Types
-          </Link>
-          <Link
-            className="border-b-2 border-transparent pb-2 hover:border-gray-300"
-            href="/admin/users"
-          >
-            Users
-          </Link>
-          <Link
-            className="border-b-2 border-transparent pb-2 hover:border-gray-300"
-            href="/admin/queue"
-          >
-            Queue
-          </Link>
-          <Link
-            className="border-b-2 border-transparent pb-2 hover:border-gray-300"
-            href="/admin/api-import"
-          >
-            API Import
-          </Link>
-        </nav>
+        <AdminNav />
       </div>
 
       {children}
