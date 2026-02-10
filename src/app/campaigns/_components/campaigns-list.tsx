@@ -1,10 +1,16 @@
 "use client";
 
 import { format } from "date-fns";
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { EmptyState } from "~/components/ui/empty-state";
 import { Loading } from "~/components/ui/loading";
 import {
@@ -56,7 +62,6 @@ export function CampaignsList({ highlightCampaignId }: CampaignsListProps) {
     setDeleteDialogOpen(true);
   };
 
-  // Scroll to and highlight campaign when ?highlight= is present
   useEffect(() => {
     if (!highlightCampaignId) return;
     const el = document.getElementById(`campaign-row-${highlightCampaignId}`);
@@ -79,7 +84,6 @@ export function CampaignsList({ highlightCampaignId }: CampaignsListProps) {
           onOpenChange={setDialogOpen}
           open={dialogOpen}
         />
-
         {deletingCampaign && (
           <DeleteCampaignDialog
             campaignId={deletingCampaign.id}
@@ -95,72 +99,100 @@ export function CampaignsList({ highlightCampaignId }: CampaignsListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={handleAddCampaign}>Add Campaign</Button>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-sm">
+          {campaigns.length} {campaigns.length === 1 ? "campaign" : "campaigns"}
+        </span>
+        <Button onClick={handleAddCampaign} size="sm">
+          <Plus className="mr-1 h-4 w-4" />
+          Add Campaign
+        </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-lg border">
+        <Table aria-label="Campaigns">
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Content Items</TableHead>
+              <TableHead>Content</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {campaigns.map((campaign) => {
               const isHighlighted = highlightCampaignId === campaign.id;
               return (
-              <TableRow
-                id={isHighlighted ? `campaign-row-${campaign.id}` : undefined}
-                key={campaign.id}
-                className={isHighlighted ? "bg-primary/10" : undefined}
-              >
-                <TableCell className="font-medium">{campaign.name}</TableCell>
-                <TableCell>{campaign.description || "-"}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{campaign.contentCount}</Badge>
-                </TableCell>
-                <TableCell>
-                  {format(new Date(campaign.createdAt), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      aria-label={`Edit ${campaign.name}`}
-                      onClick={() => handleEditCampaign(campaign.id)}
-                      size="icon"
-                      variant="ghost"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      aria-label={`Delete ${campaign.name}`}
-                      disabled={campaign.contentCount > 0}
-                      onClick={() =>
-                        handleDeleteCampaign(
-                          campaign.id,
-                          campaign.name,
-                          campaign.contentCount,
-                        )
-                      }
-                      size="icon"
-                      title={
+                <TableRow
+                  className={`group ${isHighlighted ? "bg-primary/10" : ""}`}
+                  id={
+                    isHighlighted
+                      ? `campaign-row-${campaign.id}`
+                      : undefined
+                  }
+                  key={campaign.id}
+                >
+                  <TableCell className="font-medium">
+                    {campaign.name}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground">
+                    {campaign.description || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
                         campaign.contentCount > 0
-                          ? "Cannot delete campaign with assigned content"
-                          : undefined
+                          ? "bg-[var(--pure-teal)]/10 text-[var(--pure-teal)]"
+                          : ""
                       }
-                      variant="ghost"
+                      variant="secondary"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
+                      {campaign.contentCount}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {format(new Date(campaign.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          aria-label={`Actions for ${campaign.name}`}
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleEditCampaign(campaign.id)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          disabled={campaign.contentCount > 0}
+                          onClick={() =>
+                            handleDeleteCampaign(
+                              campaign.id,
+                              campaign.name,
+                              campaign.contentCount,
+                            )
+                          }
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                          {campaign.contentCount > 0 && " (has content)"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
             })}
           </TableBody>
         </Table>

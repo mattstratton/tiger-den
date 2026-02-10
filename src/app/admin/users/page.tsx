@@ -1,8 +1,21 @@
 "use client";
 
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
+import { PageHeader } from "~/components/page-header";
 import {
   Select,
   SelectContent,
@@ -18,22 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
 import { api } from "~/trpc/react";
 
 const roleColors = {
-  admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  contributor: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  reader: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+  admin:
+    "bg-[var(--tiger-blood)]/10 text-[var(--tiger-blood)] border-[var(--tiger-blood)]/20",
+  contributor:
+    "bg-[var(--vivid-purple)]/10 text-[var(--vivid-purple)] border-[var(--vivid-purple)]/20",
+  reader: "",
 };
 
 const roleLabels = {
@@ -78,31 +83,31 @@ export default function UsersPage() {
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="font-semibold text-2xl">User Management</h2>
-        <p className="text-muted-foreground text-sm">
-          Manage user roles and permissions
-        </p>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        description="Manage user roles and permissions"
+        title="Users"
+      />
 
       <div className="rounded-lg border">
-        <Table>
+        <Table aria-label="Users">
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>Joined</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users?.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
-                  {user.name || "—"}
+                  {user.name || "\u2014"}
                 </TableCell>
-                <TableCell>{user.email}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {user.email}
+                </TableCell>
                 <TableCell>
                   <Select
                     disabled={updateRoleMutation.isPending}
@@ -116,7 +121,10 @@ export default function UsersPage() {
                   >
                     <SelectTrigger className="w-[140px]">
                       <SelectValue>
-                        <Badge className={roleColors[user.role]}>
+                        <Badge
+                          className={roleColors[user.role]}
+                          variant="outline"
+                        >
                           {roleLabels[user.role]}
                         </Badge>
                       </SelectValue>
@@ -131,7 +139,7 @@ export default function UsersPage() {
                 <TableCell className="text-muted-foreground text-sm">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString()
-                    : "—"}
+                    : "\u2014"}
                 </TableCell>
               </TableRow>
             ))}
@@ -139,23 +147,23 @@ export default function UsersPage() {
         </Table>
       </div>
 
-      <div className="mt-6 rounded-lg border border-muted bg-muted/50 p-4">
-        <h3 className="mb-2 font-medium text-sm">Role Permissions</h3>
-        <div className="space-y-2 text-muted-foreground text-sm">
-          <div>
-            <strong className="text-foreground">Admin:</strong> Full access
-            including user management, content types, and all content operations
-          </div>
-          <div>
-            <strong className="text-foreground">Contributor:</strong> Can
-            create, edit, and delete content and campaigns
-          </div>
-          <div>
-            <strong className="text-foreground">Reader:</strong> View-only
-            access to content and campaigns
-          </div>
-        </div>
-      </div>
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Role Permissions</AlertTitle>
+        <AlertDescription className="space-y-1">
+          <p>
+            <strong>Admin:</strong> Full access including user management,
+            content types, and all content operations
+          </p>
+          <p>
+            <strong>Contributor:</strong> Can create, edit, and delete content
+            and campaigns
+          </p>
+          <p>
+            <strong>Reader:</strong> View-only access to content and campaigns
+          </p>
+        </AlertDescription>
+      </Alert>
 
       <AlertDialog
         onOpenChange={(open) => {

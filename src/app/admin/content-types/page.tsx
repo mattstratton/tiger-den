@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
+import { PageHeader } from "~/components/page-header";
 import {
   Table,
   TableBody,
@@ -102,19 +103,17 @@ export default function ContentTypesPage() {
   };
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold text-2xl">Content Types</h2>
-          <p className="text-muted-foreground text-sm">
-            Manage content type categories and their display settings
-          </p>
-        </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Content Type
-        </Button>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        actions={
+          <Button onClick={() => setShowAddDialog(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Content Type
+          </Button>
+        }
+        description="Manage content type categories and their display settings"
+        title="Content Types"
+      />
 
       <div className="rounded-lg border">
         <Table>

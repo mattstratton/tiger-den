@@ -6,6 +6,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty-state";
 import { Loading } from "~/components/ui/loading";
+import { PageHeader } from "~/components/page-header";
 import {
   Card,
   CardContent,
@@ -48,13 +49,11 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 
 export default function ApiImportPage() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="font-bold text-2xl">API Import</h2>
-        <p className="text-muted-foreground">
-          Import content from Ghost, Contentful, and YouTube APIs
-        </p>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        description="Import content from Ghost, Contentful, and YouTube APIs"
+        title="API Import"
+      />
 
       <ConnectionStatusSection />
       <SingleItemTesterSection />

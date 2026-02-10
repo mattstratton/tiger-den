@@ -1,6 +1,18 @@
-import { FileText, FolderKanban, Settings } from "lucide-react";
+"use client";
+
+import {
+  ArrowRight,
+  FileText,
+  FolderKanban,
+  ListChecks,
+  Search,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import type { Session } from "next-auth";
+import { StatCard } from "~/components/stat-card";
+import { api } from "~/trpc/react";
+import { RecentContentList } from "./recent-content-list";
 
 interface DashboardProps {
   session: Session;
@@ -8,62 +20,123 @@ interface DashboardProps {
 
 export function Dashboard({ session }: DashboardProps) {
   const isAdmin = session.user.role === "admin";
+  const { data: contentData } = api.content.list.useQuery({
+    limit: 1,
+    offset: 0,
+  });
+  const { data: campaigns } = api.campaigns.list.useQuery();
+  const { data: queueStats } = isAdmin
+    ? api.queue.getStats.useQuery()
+    : { data: null };
+
+  const totalContent = contentData?.total ?? 0;
+  const totalCampaigns = campaigns?.length ?? 0;
+  const indexedCount = queueStats?.indexed ?? 0;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="font-bold text-5xl tracking-tight sm:text-6xl lg:text-7xl">
-            Tiger Den
-          </h1>
-          <p className="max-w-2xl text-muted-foreground text-xl sm:text-2xl">
-            Welcome back{session.user.name ? `, ${session.user.name}` : ""}
-          </p>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="font-bold text-2xl">
+          Welcome back{session.user.name ? `, ${session.user.name}` : ""}
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Here&apos;s an overview of your content inventory
+        </p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          accentColor="yellow"
+          icon={FileText}
+          label="Total Content"
+          value={totalContent}
+        />
+        <StatCard
+          accentColor="teal"
+          icon={Search}
+          label="Indexed"
+          value={isAdmin ? indexedCount : "\u2014"}
+        />
+        <StatCard
+          accentColor="purple"
+          icon={FolderKanban}
+          label="Campaigns"
+          value={totalCampaigns}
+        />
+        {isAdmin && queueStats ? (
+          <StatCard
+            accentColor="orange"
+            icon={ListChecks}
+            label="Pending Index"
+            value={(queueStats.notIndexed ?? 0) + (queueStats.failedIndexing ?? 0)}
+          />
+        ) : (
+          <StatCard
+            icon={FolderKanban}
+            label="Your Role"
+            value={session.user.role}
+          />
+        )}
+      </div>
+
+      {/* Recent content + quick actions */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RecentContentList />
         </div>
-
-        <div className="grid w-full max-w-2xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <Link
-            className="flex flex-col gap-3 rounded-lg border bg-card p-6 transition-colors hover:border-primary hover:bg-card/80"
-            href="/content"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="font-semibold text-lg">Content</h2>
-            <p className="text-muted-foreground text-sm">
-              View and manage your content inventory
-            </p>
-          </Link>
-
-          <Link
-            className="flex flex-col gap-3 rounded-lg border bg-card p-6 transition-colors hover:border-primary hover:bg-card/80"
-            href="/campaigns"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-              <FolderKanban className="h-6 w-6 text-accent" />
-            </div>
-            <h2 className="font-semibold text-lg">Campaigns</h2>
-            <p className="text-muted-foreground text-sm">
-              Organize content by campaign
-            </p>
-          </Link>
-
-          {isAdmin && (
+        <div className="space-y-4">
+          <h2 className="font-semibold text-sm text-muted-foreground">
+            Quick Actions
+          </h2>
+          <div className="space-y-2">
             <Link
-              className="flex flex-col gap-3 rounded-lg border bg-card p-6 transition-colors hover:border-primary hover:bg-card/80"
-              href="/admin"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/5"
+              href="/content"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-2/10">
-                <Settings className="h-6 w-6 text-chart-2" />
-              </div>
-              <h2 className="font-semibold text-lg">Admin</h2>
-              <p className="text-muted-foreground text-sm">
-                Content types, users, queue, API import
-              </p>
+              <FileText className="h-5 w-5 text-[var(--electric-yellow)]" />
+              <span className="flex-1 text-sm font-medium">
+                Browse Content
+              </span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </Link>
-          )}
+            <Link
+              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/5"
+              href="/campaigns"
+            >
+              <FolderKanban className="h-5 w-5 text-[var(--vivid-purple)]" />
+              <span className="flex-1 text-sm font-medium">
+                View Campaigns
+              </span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/5"
+                  href="/admin/queue"
+                >
+                  <ListChecks className="h-5 w-5 text-[var(--pure-teal)]" />
+                  <span className="flex-1 text-sm font-medium">
+                    Queue Dashboard
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/5"
+                  href="/admin"
+                >
+                  <Settings className="h-5 w-5 text-[var(--tiger-blood)]" />
+                  <span className="flex-1 text-sm font-medium">
+                    Admin Settings
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
