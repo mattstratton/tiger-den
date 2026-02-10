@@ -14,7 +14,6 @@ import { TRPCReactProvider } from "~/trpc/react";
 export const metadata: Metadata = {
   title: "Tiger Den - Content Inventory",
   description: "Content inventory tracking system for marketing",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
 export default async function RootLayout({
