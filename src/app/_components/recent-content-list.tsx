@@ -12,13 +12,15 @@ export function RecentContentList() {
   const { data, isLoading } = api.content.list.useQuery({
     limit: 5,
     offset: 0,
+    sortBy: "date",
+    sortOrder: "desc",
   });
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Recent Content</CardTitle>
+          <CardTitle>Recently Published</CardTitle>
         </CardHeader>
         <CardContent>
           <Loading compact message="Loading" />
@@ -32,7 +34,7 @@ export function RecentContentList() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Recent Content</CardTitle>
+        <CardTitle>Recently Published</CardTitle>
         <Link
           className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
           href="/content"
@@ -58,10 +60,15 @@ export function RecentContentList() {
                   {item.title}
                 </Link>
                 <span className="whitespace-nowrap text-muted-foreground text-xs">
-                  {item.createdAt
-                    ? formatDistanceToNow(new Date(item.createdAt), {
-                        addSuffix: true,
-                      })
+                  {(item.lastModifiedAt ?? item.publishDate)
+                    ? formatDistanceToNow(
+                        new Date(
+                          (item.lastModifiedAt ?? item.publishDate) as
+                            | Date
+                            | string,
+                        ),
+                        { addSuffix: true },
+                      )
                     : ""}
                 </span>
               </div>
