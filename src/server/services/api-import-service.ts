@@ -250,7 +250,7 @@ class ApiImportService {
 
     for (let i = 0; i < items.length; i += batchSize) {
       const chunk = items.slice(i, i + batchSize);
-      const chunkResult = await this.syncChunk(source, chunk);
+      const chunkResult = await this.syncChunk(source, chunk, userId);
 
       mergedResult.created += chunkResult.created;
       mergedResult.updated += chunkResult.updated;
@@ -334,23 +334,28 @@ class ApiImportService {
   private async syncChunk(
     source: ImportSource,
     chunk: unknown[],
+    userId: string,
   ): Promise<SyncResult> {
     switch (source) {
       case "ghost":
         return contentSyncService.syncGhostPosts(
           chunk as Parameters<typeof contentSyncService.syncGhostPosts>[0],
+          userId,
         );
       case "contentful_learn":
         return contentSyncService.syncLearnPages(
           chunk as Parameters<typeof contentSyncService.syncLearnPages>[0],
+          userId,
         );
       case "contentful_case_study":
         return contentSyncService.syncCaseStudies(
           chunk as Parameters<typeof contentSyncService.syncCaseStudies>[0],
+          userId,
         );
       case "youtube_channel":
         return contentSyncService.syncYouTubeVideos(
           chunk as Parameters<typeof contentSyncService.syncYouTubeVideos>[0],
+          userId,
         );
     }
   }

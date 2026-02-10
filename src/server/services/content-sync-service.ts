@@ -46,8 +46,6 @@ function calculateHash(text: string): string {
 }
 
 export class ContentSyncService {
-  // System user ID for API imports when no user is specified
-  private readonly SYSTEM_USER_ID = "system-api-import";
 
   /**
    * Get content type ID by slug, with caching
@@ -133,7 +131,7 @@ export class ContentSyncService {
   /**
    * Sync Ghost blog posts to the database
    */
-  async syncGhostPosts(posts: GhostPost[]): Promise<SyncResult> {
+  async syncGhostPosts(posts: GhostPost[], userId: string): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -144,7 +142,7 @@ export class ContentSyncService {
 
     for (const post of posts) {
       try {
-        await this.syncGhostPost(post, result);
+        await this.syncGhostPost(post, result, userId);
       } catch (error) {
         result.failed++;
         result.errors.push({
@@ -163,6 +161,7 @@ export class ContentSyncService {
   private async syncGhostPost(
     post: GhostPost,
     result: SyncResult,
+    userId: string,
   ): Promise<void> {
     // Normalize URL (remove blog prefix if present)
     const normalizedUrl = this.normalizeGhostUrl(post.url);
@@ -198,7 +197,7 @@ export class ContentSyncService {
       result.updated++;
     } else {
       // Create new record
-      await this.createGhostPost(post, normalizedUrl);
+      await this.createGhostPost(post, normalizedUrl, userId);
       result.created++;
     }
   }
@@ -209,6 +208,7 @@ export class ContentSyncService {
   private async createGhostPost(
     post: GhostPost,
     normalizedUrl: string,
+    userId: string,
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("blog_post");
 
@@ -225,7 +225,7 @@ export class ContentSyncService {
         source: "ghost_api" as const,
         ghostId: post.id,
         lastModifiedAt: new Date(post.updated_at),
-        createdByUserId: this.SYSTEM_USER_ID,
+        createdByUserId: userId,
       })
       .returning({ id: contentItems.id });
 
@@ -279,7 +279,7 @@ export class ContentSyncService {
   /**
    * Sync Contentful learn pages to the database
    */
-  async syncLearnPages(pages: LearnPageEntry[]): Promise<SyncResult> {
+  async syncLearnPages(pages: LearnPageEntry[], userId: string): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -290,7 +290,7 @@ export class ContentSyncService {
 
     for (const page of pages) {
       try {
-        await this.syncLearnPage(page, result);
+        await this.syncLearnPage(page, result, userId);
       } catch (error) {
         result.failed++;
         result.errors.push({
@@ -309,6 +309,7 @@ export class ContentSyncService {
   private async syncLearnPage(
     page: LearnPageEntry,
     result: SyncResult,
+    userId: string,
   ): Promise<void> {
     // Normalize URL (add https://www.tigerdata.com/ prefix if needed)
     const normalizedUrl = this.normalizeContentfulUrl(String(page.fields.url));
@@ -340,7 +341,7 @@ export class ContentSyncService {
       result.updated++;
     } else {
       // Create new record
-      await this.createLearnPage(page, normalizedUrl);
+      await this.createLearnPage(page, normalizedUrl, userId);
       result.created++;
     }
   }
@@ -351,6 +352,7 @@ export class ContentSyncService {
   private async createLearnPage(
     page: LearnPageEntry,
     normalizedUrl: string,
+    userId: string,
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("website_content");
 
@@ -376,7 +378,7 @@ export class ContentSyncService {
         source: "contentful_api",
         contentfulId: page.sys.id,
         lastModifiedAt: new Date(page.sys.updatedAt),
-        createdByUserId: this.SYSTEM_USER_ID,
+        createdByUserId: userId,
       })
       .returning({ id: contentItems.id });
 
@@ -445,7 +447,7 @@ export class ContentSyncService {
   /**
    * Sync Contentful case studies to the database
    */
-  async syncCaseStudies(studies: CaseStudyEntry[]): Promise<SyncResult> {
+  async syncCaseStudies(studies: CaseStudyEntry[], userId: string): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -456,7 +458,7 @@ export class ContentSyncService {
 
     for (const study of studies) {
       try {
-        await this.syncCaseStudy(study, result);
+        await this.syncCaseStudy(study, result, userId);
       } catch (error) {
         result.failed++;
         result.errors.push({
@@ -475,6 +477,7 @@ export class ContentSyncService {
   private async syncCaseStudy(
     study: CaseStudyEntry,
     result: SyncResult,
+    userId: string,
   ): Promise<void> {
     // Use externalLink if available, otherwise construct URL from slug
     const externalLink = study.fields.externalLink
@@ -521,7 +524,7 @@ export class ContentSyncService {
       result.updated++;
     } else {
       // Create new record
-      await this.createCaseStudy(study, normalizedUrl);
+      await this.createCaseStudy(study, normalizedUrl, userId);
       result.created++;
     }
   }
@@ -557,6 +560,7 @@ export class ContentSyncService {
   private async createCaseStudy(
     study: CaseStudyEntry,
     normalizedUrl: string,
+    userId: string,
   ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("case_study");
 
@@ -577,7 +581,7 @@ export class ContentSyncService {
         source: "contentful_api",
         contentfulId: study.sys.id,
         lastModifiedAt: new Date(study.sys.updatedAt),
-        createdByUserId: this.SYSTEM_USER_ID,
+        createdByUserId: userId,
       })
       .returning({ id: contentItems.id });
 
@@ -825,7 +829,7 @@ export class ContentSyncService {
   /**
    * Sync YouTube videos to the database
    */
-  async syncYouTubeVideos(videos: YouTubeVideo[]): Promise<SyncResult> {
+  async syncYouTubeVideos(videos: YouTubeVideo[], userId: string): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -836,7 +840,7 @@ export class ContentSyncService {
 
     for (const video of videos) {
       try {
-        await this.syncYouTubeVideo(video, result);
+        await this.syncYouTubeVideo(video, result, userId);
       } catch (error) {
         result.failed++;
         result.errors.push({
@@ -855,6 +859,7 @@ export class ContentSyncService {
   private async syncYouTubeVideo(
     video: YouTubeVideo,
     result: SyncResult,
+    userId: string,
   ): Promise<void> {
     // Find existing content by YouTube video ID or URL
     const existing = await db.query.contentItems.findFirst({
@@ -884,7 +889,7 @@ export class ContentSyncService {
       await this.updateYouTubeVideo(existing.id, video);
       result.updated++;
     } else {
-      await this.createYouTubeVideo(video);
+      await this.createYouTubeVideo(video, userId);
       result.created++;
     }
   }
@@ -892,7 +897,7 @@ export class ContentSyncService {
   /**
    * Create a new YouTube video record and fetch transcript
    */
-  private async createYouTubeVideo(video: YouTubeVideo): Promise<void> {
+  private async createYouTubeVideo(video: YouTubeVideo, userId: string): Promise<void> {
     const contentTypeId = await this.getContentTypeId("youtube_video");
 
     const [inserted] = await db
@@ -908,7 +913,7 @@ export class ContentSyncService {
         source: "youtube_api" as const,
         youtubeVideoId: video.id,
         lastModifiedAt: new Date(video.publishedAt),
-        createdByUserId: this.SYSTEM_USER_ID,
+        createdByUserId: userId,
       })
       .returning({ id: contentItems.id });
 

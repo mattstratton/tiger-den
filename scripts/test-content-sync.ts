@@ -7,6 +7,8 @@ import { ghostClient } from "../src/server/services/ghost-api-client";
 import { contentfulClient } from "../src/server/services/contentful-api-client";
 import { contentSyncService } from "../src/server/services/content-sync-service";
 
+const TEST_USER_ID = process.env.TEST_USER_ID ?? "test-user";
+
 async function testSync() {
   console.log("=".repeat(70));
   console.log("Testing Content Sync Service");
@@ -25,7 +27,7 @@ async function testSync() {
       console.log(`\n📊 Fetched ${posts.posts.length} posts from Ghost`);
 
       // Sync them
-      const ghostResult = await contentSyncService.syncGhostPosts(posts.posts);
+      const ghostResult = await contentSyncService.syncGhostPosts(posts.posts, TEST_USER_ID);
       console.log("\n✅ Ghost Sync Results:");
       console.log(`  Created: ${ghostResult.created}`);
       console.log(`  Updated: ${ghostResult.updated}`);
@@ -60,6 +62,7 @@ async function testSync() {
       // Sync them
       const learnResult = await contentSyncService.syncLearnPages(
         learnPages.items,
+        TEST_USER_ID,
       );
       console.log("\n✅ Learn Pages Sync Results:");
       console.log(`  Created: ${learnResult.created}`);
@@ -95,6 +98,7 @@ async function testSync() {
       // Sync them
       const caseStudyResult = await contentSyncService.syncCaseStudies(
         caseStudies.items,
+        TEST_USER_ID,
       );
       console.log("\n✅ Case Studies Sync Results:");
       console.log(`  Created: ${caseStudyResult.created}`);
