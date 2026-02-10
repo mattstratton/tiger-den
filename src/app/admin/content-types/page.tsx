@@ -149,6 +149,7 @@ export default function ContentTypesPage() {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
+                      aria-label={`Edit ${type.name}`}
                       onClick={() => setEditingTypeId(type.id)}
                       size="sm"
                       variant="ghost"
@@ -156,6 +157,7 @@ export default function ContentTypesPage() {
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
+                      aria-label={`Delete ${type.name}`}
                       disabled={type.isSystem}
                       onClick={() => handleDelete(type)}
                       size="sm"

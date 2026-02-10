@@ -185,7 +185,13 @@ export function ContentFormDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] max-w-2xl overflow-y-auto"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          form.setFocus("title");
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {contentId ? "Edit Content" : "Add Content"}

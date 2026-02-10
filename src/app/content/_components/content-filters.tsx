@@ -258,6 +258,7 @@ export function ContentFilters({
             <Button
               aria-label="Clear all filters"
               onClick={handleClearFilters}
+              title="Clear all filters"
               variant="ghost"
             >
               <X className="mr-2 h-4 w-4" />

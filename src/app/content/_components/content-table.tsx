@@ -347,6 +347,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
+                      aria-label={`Edit ${item.title}`}
                       onClick={() => setEditingId(item.id)}
                       size="icon"
                       variant="ghost"
@@ -354,6 +355,7 @@ export function ContentTable({ filters }: ContentTableProps) {
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
+                      aria-label={`Delete ${item.title}`}
                       onClick={() =>
                         setDeletingItem({ id: item.id, title: item.title })
                       }
