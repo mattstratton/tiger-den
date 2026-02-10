@@ -1,7 +1,15 @@
 "use client";
 
 import { format } from "date-fns";
-import { ExternalLink, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ExternalLink,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -30,6 +38,9 @@ import { HighlightedSnippet } from "./highlighted-snippet";
 import { MatchTypeBadge } from "./match-type-badge";
 import { ReindexButton } from "./reindex-button";
 
+type SortColumn = "title" | "date" | "type" | "author" | "createdAt";
+type SortOrder = "asc" | "desc";
+
 interface ContentEnhancedTableProps {
   items: Array<{
     id: string;
@@ -38,6 +49,7 @@ interface ContentEnhancedTableProps {
     description: string | null;
     author: string | null;
     publishDate: string | null;
+    lastModifiedAt: Date | null;
     contentTypeRel: { name: string; color: string };
     campaigns: Array<{ campaign: { id: string; name: string } }>;
     relevanceScore?: number;
@@ -46,6 +58,9 @@ interface ContentEnhancedTableProps {
     matchedTerms?: string[];
   }>;
   showRelevance: boolean;
+  sortBy?: SortColumn;
+  sortOrder?: SortOrder;
+  onSort?: (column: SortColumn) => void;
   onEdit: (id: string) => void;
   onDelete: (item: { id: string; title: string }) => void;
 }
@@ -53,40 +68,83 @@ interface ContentEnhancedTableProps {
 export function ContentEnhancedTable({
   items,
   showRelevance,
+  sortBy,
+  sortOrder,
+  onSort,
   onEdit,
   onDelete,
 }: ContentEnhancedTableProps) {
+  function SortableHeader({
+    column,
+    children,
+    className,
+  }: {
+    column: SortColumn;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const isActive = sortBy === column;
+    const Icon = isActive
+      ? sortOrder === "asc"
+        ? ArrowUp
+        : ArrowDown
+      : ArrowUpDown;
+
+    return (
+      <TableHead className={`sticky top-0 ${className ?? ""}`}>
+        <button
+          className="inline-flex items-center gap-1 hover:text-foreground"
+          onClick={() => onSort?.(column)}
+          type="button"
+        >
+          {children}
+          <Icon
+            className={`h-3 w-3 ${isActive ? "text-foreground" : "text-muted-foreground/50"}`}
+          />
+        </button>
+      </TableHead>
+    );
+  }
+
   return (
     <div className="rounded-lg border">
-      <Table aria-label="Content inventory">
+      <Table aria-label="Content inventory" className="table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="sticky top-0 w-[40%]">Title</TableHead>
-            <TableHead className="sticky top-0">Type</TableHead>
-            <TableHead className="sticky top-0">Date</TableHead>
-            <TableHead className="sticky top-0">Campaigns</TableHead>
-            <TableHead className="sticky top-0">Author</TableHead>
+            <SortableHeader className="w-[35%]" column="title">
+              Title
+            </SortableHeader>
+            <SortableHeader className="w-[8%]" column="type">
+              Type
+            </SortableHeader>
+            <SortableHeader className="w-[10%]" column="date">
+              Date
+            </SortableHeader>
+            <TableHead className="sticky top-0 w-[12%]">Campaigns</TableHead>
+            <SortableHeader className="w-[12%]" column="author">
+              Author
+            </SortableHeader>
             {showRelevance && (
-              <TableHead className="sticky top-0">Relevance</TableHead>
+              <TableHead className="sticky top-0 w-[8%]">Relevance</TableHead>
             )}
-            <TableHead className="sticky top-0">Index</TableHead>
-            <TableHead className="sticky top-0 w-12" />
+            <TableHead className="sticky top-0 w-[18%]">Index</TableHead>
+            <TableHead className="sticky top-0 w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((item) => (
             <TableRow className="group" key={item.id}>
-              <TableCell className="max-w-md py-3">
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
+              <TableCell className="whitespace-normal py-3">
+                <div className="flex flex-col gap-0.5 overflow-hidden">
+                  <div className="flex items-start gap-2">
                     <Link
-                      className="font-medium hover:underline"
+                      className="break-words font-medium hover:underline"
                       href={`/content/${item.id}`}
                     >
                       {item.title}
                     </Link>
                     <a
-                      className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                      className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
                       href={item.currentUrl}
                       rel="noopener noreferrer"
                       target="_blank"
@@ -117,9 +175,11 @@ export function ContentEnhancedTable({
                 <ContentTypeBadge type={item.contentTypeRel} />
               </TableCell>
               <TableCell className="whitespace-nowrap text-sm">
-                {item.publishDate
-                  ? format(new Date(item.publishDate), "MMM d, yyyy")
-                  : "-"}
+                {item.lastModifiedAt
+                  ? format(new Date(item.lastModifiedAt), "MMM d, yyyy")
+                  : item.publishDate
+                    ? format(new Date(item.publishDate), "MMM d, yyyy")
+                    : "-"}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">

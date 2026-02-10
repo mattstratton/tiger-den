@@ -1,5 +1,16 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import {
   contributorProcedure,
@@ -25,6 +36,10 @@ export const contentRouter = createTRPCRouter({
         campaignIds: z.array(z.string().uuid()).optional(),
         publishDateFrom: z.string().optional(),
         publishDateTo: z.string().optional(),
+        sortBy: z
+          .enum(["title", "date", "type", "author", "createdAt"])
+          .default("createdAt"),
+        sortOrder: z.enum(["asc", "desc"]).default("desc"),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
       }),
@@ -45,7 +60,9 @@ export const contentRouter = createTRPCRouter({
 
       // Content type filter
       if (input.contentTypeIds && input.contentTypeIds.length > 0) {
-        conditions.push(inArray(contentItems.contentTypeId, input.contentTypeIds));
+        conditions.push(
+          inArray(contentItems.contentTypeId, input.contentTypeIds),
+        );
       }
 
       // Date range filter
@@ -72,11 +89,21 @@ export const contentRouter = createTRPCRouter({
       const whereClause =
         conditions.length > 0 ? and(...conditions) : undefined;
 
+      const sortDir = input.sortOrder === "asc" ? asc : desc;
+      const sortColumnMap = {
+        title: contentItems.title,
+        date: contentItems.lastModifiedAt,
+        type: contentItems.contentTypeId,
+        author: contentItems.author,
+        createdAt: contentItems.createdAt,
+      } as const;
+      const sortColumn = sortColumnMap[input.sortBy];
+
       const items = await ctx.db.query.contentItems.findMany({
         where: whereClause,
         limit: input.limit,
         offset: input.offset,
-        orderBy: (contentItems, { desc }) => [desc(contentItems.createdAt)],
+        orderBy: [sortDir(sortColumn)],
         with: {
           contentTypeRel: true,
           campaigns: {
@@ -344,13 +371,15 @@ export const contentRouter = createTRPCRouter({
       });
 
       // Create a map for quick lookup
-      const contentMap = new Map(contentItemsData.map((item) => [item.id, item]));
+      const contentMap = new Map(
+        contentItemsData.map((item) => [item.id, item]),
+      );
 
       // Normalize relevance scores to 0-100 scale (top result = 100%)
       const maxScore = Math.max(...searchResults.map((r) => r.relevanceScore));
       const normalizedResults = searchResults.map((result) => ({
         ...result,
-        relevanceScore: maxScore > 0 ? (result.relevanceScore / maxScore) : 0,
+        relevanceScore: maxScore > 0 ? result.relevanceScore / maxScore : 0,
       }));
 
       // Combine search results with content details
@@ -399,7 +428,7 @@ export const contentRouter = createTRPCRouter({
       const maxScore = Math.max(...searchResults.map((r) => r.relevanceScore));
       const normalizedResults = searchResults.map((result) => ({
         ...result,
-        relevanceScore: maxScore > 0 ? (result.relevanceScore / maxScore) : 0,
+        relevanceScore: maxScore > 0 ? result.relevanceScore / maxScore : 0,
       }));
 
       // Combine search results with content details

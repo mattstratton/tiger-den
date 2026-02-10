@@ -1,10 +1,22 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty-state";
 import { Loading } from "~/components/ui/loading";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { ContentCardGrid } from "./content-card-grid";
@@ -25,6 +37,17 @@ interface ContentListProps {
   onTotalChange?: (total: number) => void;
 }
 
+type SortColumn = "title" | "date" | "type" | "author" | "createdAt";
+type SortOrder = "asc" | "desc";
+
+const SORT_LABELS: Record<SortColumn, string> = {
+  title: "Title",
+  date: "Date",
+  type: "Type",
+  author: "Author",
+  createdAt: "Date Added",
+};
+
 export function ContentList({
   filters,
   viewMode,
@@ -37,6 +60,18 @@ export function ContentList({
     { id: string; title: string } | undefined
   >();
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  const [sortBy, setSortBy] = useState<SortColumn>("date");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  const handleSort = (column: SortColumn) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(column);
+      setSortOrder(column === "title" ? "asc" : "desc");
+    }
+    setPage(0);
+  };
 
   // Reset page to 0 when filters change
   useEffect(() => {
@@ -77,6 +112,8 @@ export function ContentList({
           : undefined,
       publishDateTo:
         filters.publishDateTo.length > 0 ? filters.publishDateTo : undefined,
+      sortBy,
+      sortOrder,
       limit: pageSize,
       offset: page * pageSize,
     },
@@ -200,18 +237,59 @@ export function ContentList({
   return (
     <div className="space-y-4">
       {viewMode === "grid" ? (
-        <ContentCardGrid
-          items={items}
-          onDelete={(item) => setDeletingItem(item)}
-          onEdit={(id) => setEditingId(id)}
-          showRelevance={useAdvancedSearch}
-        />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm">Sort by</span>
+            <Select
+              onValueChange={(v) => {
+                setSortBy(v as SortColumn);
+                setPage(0);
+              }}
+              value={sortBy}
+            >
+              <SelectTrigger className="h-8 w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(SORT_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              className="h-8 w-8"
+              onClick={() =>
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+              }
+              size="icon"
+              title={sortOrder === "asc" ? "Ascending" : "Descending"}
+              variant="ghost"
+            >
+              {sortOrder === "asc" ? (
+                <ArrowUpAZ className="h-4 w-4" />
+              ) : (
+                <ArrowDownAZ className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <ContentCardGrid
+            items={items}
+            onDelete={(item) => setDeletingItem(item)}
+            onEdit={(id) => setEditingId(id)}
+            showRelevance={useAdvancedSearch}
+          />
+        </div>
       ) : (
         <ContentEnhancedTable
           items={items}
           onDelete={(item) => setDeletingItem(item)}
           onEdit={(id) => setEditingId(id)}
+          onSort={handleSort}
           showRelevance={useAdvancedSearch}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
         />
       )}
 

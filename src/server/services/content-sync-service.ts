@@ -46,7 +46,6 @@ function calculateHash(text: string): string {
 }
 
 export class ContentSyncService {
-
   /**
    * Get content type ID by slug, with caching
    */
@@ -131,7 +130,10 @@ export class ContentSyncService {
   /**
    * Sync Ghost blog posts to the database
    */
-  async syncGhostPosts(posts: GhostPost[], userId: string): Promise<SyncResult> {
+  async syncGhostPosts(
+    posts: GhostPost[],
+    userId: string,
+  ): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -279,7 +281,10 @@ export class ContentSyncService {
   /**
    * Sync Contentful learn pages to the database
    */
-  async syncLearnPages(pages: LearnPageEntry[], userId: string): Promise<SyncResult> {
+  async syncLearnPages(
+    pages: LearnPageEntry[],
+    userId: string,
+  ): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -365,12 +370,16 @@ export class ContentSyncService {
       tagNames.push(String(page.fields.subSection));
     }
 
+    const sysAny = page.sys as unknown as Record<string, unknown>;
+    const publishedAt = (sysAny.firstPublishedAt ?? sysAny.createdAt) as string;
+
     const [inserted] = await db
       .insert(contentItems)
       .values({
         title: String(page.fields.title),
         currentUrl: normalizedUrl,
         contentTypeId,
+        publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description: page.fields.metaDescription
           ? String(page.fields.metaDescription)
           : undefined,
@@ -419,12 +428,16 @@ export class ContentSyncService {
       tagNames.push(String(page.fields.subSection));
     }
 
+    const sysAny = page.sys as unknown as Record<string, unknown>;
+    const publishedAt = (sysAny.firstPublishedAt ?? sysAny.createdAt) as string;
+
     // Update the record
     await db
       .update(contentItems)
       .set({
         title: String(page.fields.title),
         currentUrl: normalizedUrl,
+        publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description: page.fields.metaDescription
           ? String(page.fields.metaDescription)
           : undefined,
@@ -447,7 +460,10 @@ export class ContentSyncService {
   /**
    * Sync Contentful case studies to the database
    */
-  async syncCaseStudies(studies: CaseStudyEntry[], userId: string): Promise<SyncResult> {
+  async syncCaseStudies(
+    studies: CaseStudyEntry[],
+    userId: string,
+  ): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -570,12 +586,16 @@ export class ContentSyncService {
         ? String(study.fields.metaDescription)
         : undefined;
 
+    const sysAny = study.sys as unknown as Record<string, unknown>;
+    const publishedAt = (sysAny.firstPublishedAt ?? sysAny.createdAt) as string;
+
     const [inserted] = await db
       .insert(contentItems)
       .values({
         title: String(study.fields.name),
         currentUrl: normalizedUrl,
         contentTypeId,
+        publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description,
         tags: study.fields.category ? [String(study.fields.category)] : [],
         source: "contentful_api",
@@ -619,12 +639,16 @@ export class ContentSyncService {
         ? String(study.fields.metaDescription)
         : undefined;
 
+    const sysAny = study.sys as unknown as Record<string, unknown>;
+    const publishedAt = (sysAny.firstPublishedAt ?? sysAny.createdAt) as string;
+
     // Update the record
     await db
       .update(contentItems)
       .set({
         title: String(study.fields.name),
         currentUrl: normalizedUrl,
+        publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description,
         tags: study.fields.category ? [String(study.fields.category)] : [],
         contentfulId: study.sys.id,
@@ -829,7 +853,10 @@ export class ContentSyncService {
   /**
    * Sync YouTube videos to the database
    */
-  async syncYouTubeVideos(videos: YouTubeVideo[], userId: string): Promise<SyncResult> {
+  async syncYouTubeVideos(
+    videos: YouTubeVideo[],
+    userId: string,
+  ): Promise<SyncResult> {
     const result: SyncResult = {
       created: 0,
       updated: 0,
@@ -897,7 +924,10 @@ export class ContentSyncService {
   /**
    * Create a new YouTube video record and fetch transcript
    */
-  private async createYouTubeVideo(video: YouTubeVideo, userId: string): Promise<void> {
+  private async createYouTubeVideo(
+    video: YouTubeVideo,
+    userId: string,
+  ): Promise<void> {
     const contentTypeId = await this.getContentTypeId("youtube_video");
 
     const [inserted] = await db

@@ -25,6 +25,7 @@ interface ContentCardGridProps {
     description: string | null;
     author: string | null;
     publishDate: string | null;
+    lastModifiedAt: Date | null;
     contentTypeRel: { name: string; color: string };
     campaigns: Array<{ campaign: { id: string; name: string } }>;
     relevanceScore?: number;
@@ -102,7 +103,7 @@ export function ContentCardGrid({
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   {item.relevanceScore != null && (
-                    <span className="font-mono text-xs text-[var(--vivid-purple)]">
+                    <span className="font-mono text-[var(--vivid-purple)] text-xs">
                       {(item.relevanceScore * 100).toFixed(1)}%
                     </span>
                   )}
@@ -118,8 +119,17 @@ export function ContentCardGrid({
             )}
 
             <div className="flex items-center gap-3 text-muted-foreground text-xs">
-              {item.publishDate && (
-                <span>{format(new Date(item.publishDate), "MMM d, yyyy")}</span>
+              {(item.lastModifiedAt ?? item.publishDate) && (
+                <span>
+                  {format(
+                    new Date(
+                      (item.lastModifiedAt ?? item.publishDate) as
+                        | Date
+                        | string,
+                    ),
+                    "MMM d, yyyy",
+                  )}
+                </span>
               )}
               {item.author && <span>{item.author}</span>}
               <a

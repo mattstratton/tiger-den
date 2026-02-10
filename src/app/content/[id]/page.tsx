@@ -13,12 +13,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
 import { api } from "~/trpc/server";
 import { ContentTypeBadge } from "../_components/content-badge";
@@ -45,7 +40,7 @@ export default async function ContentDetailPage(props: PageProps) {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       {/* Back link */}
       <Link
         className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
@@ -170,9 +165,21 @@ export default async function ContentDetailPage(props: PageProps) {
                 <div className="flex items-start gap-3">
                   <Calendar className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div>
-                    <div className="font-medium text-sm">Publish Date</div>
+                    <div className="font-medium text-sm">Published</div>
                     <div className="text-muted-foreground text-sm">
                       {format(new Date(content.publishDate), "MMMM d, yyyy")}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {content.lastModifiedAt && (
+                <div className="flex items-start gap-3">
+                  <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="font-medium text-sm">Last Updated</div>
+                    <div className="text-muted-foreground text-sm">
+                      {format(new Date(content.lastModifiedAt), "MMMM d, yyyy")}
                     </div>
                   </div>
                 </div>
@@ -220,28 +227,8 @@ export default async function ContentDetailPage(props: PageProps) {
 
               <Separator />
 
-              <div className="flex items-start gap-3">
-                <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="space-y-2">
-                  <div>
-                    <div className="font-medium text-sm">Created</div>
-                    <div className="text-muted-foreground text-sm">
-                      {format(
-                        new Date(content.createdAt),
-                        "MMM d, yyyy h:mm a",
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm">Last Updated</div>
-                    <div className="text-muted-foreground text-sm">
-                      {format(
-                        new Date(content.updatedAt),
-                        "MMM d, yyyy h:mm a",
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <div className="text-muted-foreground text-xs">
+                Added {format(new Date(content.createdAt), "MMM d, yyyy")}
               </div>
             </CardContent>
           </Card>
