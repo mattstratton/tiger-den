@@ -597,7 +597,9 @@ export class ContentSyncService {
         contentTypeId,
         publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description,
-        tags: study.fields.category ? [String(study.fields.category)] : [],
+        tags: study.fields.category
+          ? ["case-study", String(study.fields.category)]
+          : ["case-study"],
         source: "contentful_api",
         contentfulId: study.sys.id,
         lastModifiedAt: new Date(study.sys.updatedAt),
@@ -650,7 +652,9 @@ export class ContentSyncService {
         currentUrl: normalizedUrl,
         publishDate: new Date(publishedAt).toISOString().split("T")[0]!,
         description,
-        tags: study.fields.category ? [String(study.fields.category)] : [],
+        tags: study.fields.category
+          ? ["case-study", String(study.fields.category)]
+          : ["case-study"],
         contentfulId: study.sys.id,
         lastModifiedAt: new Date(study.sys.updatedAt),
         ...(urlChanged && { previousUrls }),
