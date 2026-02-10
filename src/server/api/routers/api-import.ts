@@ -1,6 +1,10 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { db } from "~/server/db";
+import { apiImportSchedules } from "~/server/db/schema";
 import { apiImportService } from "~/server/services/api-import-service";
+import { getLastSuccessfulImportTime } from "~/server/services/scheduled-import-runner";
 
 const importSourceSchema = z.enum([
   "ghost",
@@ -82,5 +86,55 @@ export const apiImportRouter = createTRPCRouter({
         limit: input?.limit,
         offset: input?.offset,
       });
+    }),
+
+  /**
+   * Get all import schedule configurations
+   */
+  getSchedules: adminProcedure.query(async () => {
+    return db.select().from(apiImportSchedules);
+  }),
+
+  /**
+   * Toggle a schedule on/off for a source
+   */
+  updateSchedule: adminProcedure
+    .input(
+      z.object({
+        sourceType: importSourceSchema,
+        enabled: z.boolean(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      await db
+        .update(apiImportSchedules)
+        .set({
+          enabled: input.enabled,
+          updatedAt: new Date(),
+        })
+        .where(eq(apiImportSchedules.sourceType, input.sourceType));
+
+      return { success: true };
+    }),
+
+  /**
+   * Trigger an import now (incremental, same logic as cron route)
+   */
+  triggerScheduledImport: adminProcedure
+    .input(
+      z.object({
+        source: importSourceSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const since = await getLastSuccessfulImportTime(input.source);
+
+      const result = await apiImportService.executeImport(
+        input.source,
+        ctx.session.user.id,
+        { since },
+      );
+
+      return result;
     }),
 });

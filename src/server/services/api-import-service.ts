@@ -3,10 +3,10 @@
  * Orchestrates preview, batching, and logging for Ghost and Contentful imports
  */
 
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { apiConfig } from "~/server/config/api-config";
 import { db } from "~/server/db";
-import { apiImportLogs } from "~/server/db/schema";
+import { apiImportLogs, users } from "~/server/db/schema";
 import {
   contentSyncService,
   type PreviewResult,
@@ -197,7 +197,7 @@ class ApiImportService {
    */
   async executeImport(
     source: ImportSource,
-    userId: string,
+    userId: string | null,
     options?: { since?: Date; dryRun?: boolean },
   ): Promise<ImportResult> {
     const dryRun = options?.dryRun ?? false;
@@ -235,6 +235,9 @@ class ApiImportService {
       };
     }
 
+    // Resolve a user ID for content attribution (createdByUserId is NOT NULL)
+    const syncUserId = userId ?? (await this.getSystemUserId());
+
     // Fetch all items
     const items = await this.fetchItems(source, options?.since);
     const { batchSize, chunkDelayMs } = apiConfig.import;
@@ -250,7 +253,7 @@ class ApiImportService {
 
     for (let i = 0; i < items.length; i += batchSize) {
       const chunk = items.slice(i, i + batchSize);
-      const chunkResult = await this.syncChunk(source, chunk, userId);
+      const chunkResult = await this.syncChunk(source, chunk, syncUserId);
 
       mergedResult.created += chunkResult.created;
       mergedResult.updated += chunkResult.updated;
@@ -264,7 +267,7 @@ class ApiImportService {
       }
     }
 
-    // Log the import
+    // Log the import — initiatedByUserId is null for system-initiated imports
     await db.insert(apiImportLogs).values({
       sourceType: source,
       totalItems: items.length,
@@ -308,6 +311,25 @@ class ApiImportService {
   }
 
   // --- Private helpers ---
+
+  /**
+   * Find a system user (first admin) for scheduled import content attribution.
+   */
+  private async getSystemUserId(): Promise<string> {
+    const adminUser = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, "admin"))
+      .limit(1);
+
+    if (adminUser[0]) return adminUser[0].id;
+
+    const anyUser = await db.select({ id: users.id }).from(users).limit(1);
+
+    if (anyUser[0]) return anyUser[0].id;
+
+    throw new Error("No users found in database for system imports");
+  }
 
   private async fetchItems(
     source: ImportSource,

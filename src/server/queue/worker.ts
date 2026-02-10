@@ -1,6 +1,6 @@
+import type { IndexJobPayload } from "~/server/queue/indexing-queue";
 import { getQueue } from "~/server/queue/indexing-queue";
 import { indexSingleItem } from "~/server/services/indexing-orchestrator";
-import type { IndexJobPayload } from "~/server/queue/indexing-queue";
 
 /**
  * Start the queue worker to process index-content jobs
@@ -38,9 +38,7 @@ export async function startWorker() {
       // Check if any jobs failed
       const failures = results.filter((r) => r.status === "rejected");
       if (failures.length > 0) {
-        throw new Error(
-          `${failures.length} out of ${jobs.length} jobs failed`,
-        );
+        throw new Error(`${failures.length} out of ${jobs.length} jobs failed`);
       }
     },
   );

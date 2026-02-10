@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "~/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { EmptyState } from "~/components/ui/empty-state";
-import { Loading } from "~/components/ui/loading";
-import { PageHeader } from "~/components/page-header";
 import {
   Card,
   CardContent,
@@ -15,8 +13,10 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
+import { EmptyState } from "~/components/ui/empty-state";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Loading } from "~/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { Switch } from "~/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -32,6 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 import { api } from "~/trpc/react";
 
 type ImportSource =
@@ -49,7 +55,7 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 
 export default function ApiImportPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       <PageHeader
         description="Import content from Ghost, Contentful, and YouTube APIs"
         title="API Import"
@@ -58,6 +64,7 @@ export default function ApiImportPage() {
       <ConnectionStatusSection />
       <SingleItemTesterSection />
       <BulkImportSection />
+      <ScheduledImportsSection />
       <ImportHistorySection />
     </div>
   );
@@ -456,8 +463,8 @@ function BulkImportSection() {
                     {importMutation.data.errors.length} error(s)
                   </summary>
                   <ul className="mt-1 list-disc pl-5 text-sm">
-                    {importMutation.data.errors.map((err, i) => (
-                      <li key={i}>
+                    {importMutation.data.errors.map((err) => (
+                      <li key={`${err.item}-${err.error}`}>
                         {err.item}: {err.error}
                       </li>
                     ))}
@@ -496,7 +503,170 @@ function StatsCard({
   );
 }
 
-// --- Section 4: Import History ---
+// --- Section 4: Scheduled Imports ---
+
+const IS_DEV = process.env.NODE_ENV === "development";
+
+function ScheduledImportsSection() {
+  const schedulesQuery = api.apiImport.getSchedules.useQuery();
+  const historyQuery = api.apiImport.getImportHistory.useQuery({ limit: 100 });
+  const utils = api.useUtils();
+
+  const updateMutation = api.apiImport.updateSchedule.useMutation({
+    onSuccess: () => {
+      void utils.apiImport.getSchedules.invalidate();
+    },
+  });
+
+  const triggerMutation = api.apiImport.triggerScheduledImport.useMutation({
+    onSuccess: () => {
+      void utils.apiImport.getSchedules.invalidate();
+      void utils.apiImport.getImportHistory.invalidate();
+    },
+  });
+
+  const getLastRun = (sourceType: string) => {
+    if (!historyQuery.data) return null;
+    const log = historyQuery.data.find(
+      (l) => l.sourceType === sourceType && !l.dryRun,
+    );
+    return log?.startedAt ?? null;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Scheduled Imports</CardTitle>
+        <CardDescription>
+          Enable sources to automatically import new content daily at 6 AM UTC.
+          Each run only fetches content updated since the last successful
+          import.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {IS_DEV && (
+          <Alert>
+            <AlertTitle>Local Development</AlertTitle>
+            <AlertDescription>
+              Automatic schedules only run in production (via Vercel Cron). Use
+              the &quot;Run Now&quot; button to test imports locally.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {schedulesQuery.isLoading && (
+          <Loading className="py-6" message="Loading schedules" />
+        )}
+
+        {schedulesQuery.error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{schedulesQuery.error.message}</AlertDescription>
+          </Alert>
+        )}
+
+        {schedulesQuery.data && (
+          <div className="space-y-3">
+            {schedulesQuery.data.map((schedule) => {
+              const lastRun = getLastRun(schedule.sourceType);
+              const isRunning =
+                triggerMutation.isPending &&
+                triggerMutation.variables?.source === schedule.sourceType;
+
+              return (
+                <div
+                  className="flex items-center justify-between rounded-lg border p-4"
+                  key={schedule.sourceType}
+                >
+                  <div className="flex items-center gap-3">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Switch
+                            checked={schedule.enabled}
+                            disabled={updateMutation.isPending}
+                            onCheckedChange={(checked) => {
+                              updateMutation.mutate({
+                                sourceType: schedule.sourceType as ImportSource,
+                                enabled: checked,
+                              });
+                            }}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {schedule.enabled
+                          ? "Disable scheduled imports"
+                          : "Enable daily imports at 6 AM UTC"}
+                      </TooltipContent>
+                    </Tooltip>
+                    <div>
+                      <span className="font-medium">
+                        {SOURCE_LABELS[schedule.sourceType as ImportSource] ??
+                          schedule.sourceType}
+                      </span>
+                      <p className="text-muted-foreground text-sm">
+                        {lastRun
+                          ? `Last run: ${new Date(lastRun).toLocaleString()}`
+                          : "Never run"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {schedule.enabled && (
+                      <Badge variant="default">Active</Badge>
+                    )}
+                    <Button
+                      disabled={triggerMutation.isPending}
+                      onClick={() =>
+                        triggerMutation.mutate({
+                          source: schedule.sourceType as ImportSource,
+                        })
+                      }
+                      size="sm"
+                      variant="outline"
+                    >
+                      {isRunning ? "Running..." : "Run Now"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {updateMutation.isError && (
+          <Alert className="mt-4" variant="destructive">
+            <AlertTitle>Update Error</AlertTitle>
+            <AlertDescription>{updateMutation.error.message}</AlertDescription>
+          </Alert>
+        )}
+
+        {triggerMutation.isSuccess && (
+          <Alert className="mt-4">
+            <AlertTitle>Import Complete</AlertTitle>
+            <AlertDescription>
+              Created: {triggerMutation.data.created}, Updated:{" "}
+              {triggerMutation.data.updated}, Skipped:{" "}
+              {triggerMutation.data.skipped}
+              {triggerMutation.data.failed > 0 &&
+                `, Failed: ${triggerMutation.data.failed}`}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {triggerMutation.isError && (
+          <Alert className="mt-4" variant="destructive">
+            <AlertTitle>Import Failed</AlertTitle>
+            <AlertDescription>{triggerMutation.error.message}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Section 5: Import History ---
 
 function ImportHistorySection() {
   const historyQuery = api.apiImport.getImportHistory.useQuery(
@@ -512,12 +682,14 @@ function ImportHistorySection() {
       </CardHeader>
       <CardContent>
         {historyQuery.isLoading && (
-          <Loading message="Loading history" className="py-6" />
+          <Loading className="py-6" message="Loading history" />
         )}
 
-        {historyQuery.data && historyQuery.data.length === 0 && !historyQuery.isLoading && (
-          <EmptyState message="No imports yet. Run a bulk import above to get started." />
-        )}
+        {historyQuery.data &&
+          historyQuery.data.length === 0 &&
+          !historyQuery.isLoading && (
+            <EmptyState message="No imports yet. Run a bulk import above to get started." />
+          )}
 
         {historyQuery.data && historyQuery.data.length > 0 && (
           <div className="overflow-x-auto">

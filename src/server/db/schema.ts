@@ -19,25 +19,27 @@ import {
 const tigerDenSchema = pgSchema("tiger_den");
 
 // Custom type for pgvector halfvec
-const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>({
-  dataType(config) {
-    return `halfvec(${(config as { dimension?: number } | undefined)?.dimension ?? 1536})`;
+const halfvec = customType<{ data: number[]; config?: { dimension?: number } }>(
+  {
+    dataType(config) {
+      return `halfvec(${(config as { dimension?: number } | undefined)?.dimension ?? 1536})`;
+    },
+    toDriver(value: number[]): string {
+      // Convert array to PostgreSQL array format: '[0.1,0.2,0.3]'
+      return `[${value.join(",")}]`;
+    },
+    fromDriver(value: unknown): number[] {
+      // Parse PostgreSQL array format back to number array
+      if (typeof value === "string") {
+        return value
+          .slice(1, -1) // Remove brackets
+          .split(",")
+          .map(Number);
+      }
+      return value as number[];
+    },
   },
-  toDriver(value: number[]): string {
-    // Convert array to PostgreSQL array format: '[0.1,0.2,0.3]'
-    return `[${value.join(",")}]`;
-  },
-  fromDriver(value: unknown): number[] {
-    // Parse PostgreSQL array format back to number array
-    if (typeof value === "string") {
-      return value
-        .slice(1, -1) // Remove brackets
-        .split(",")
-        .map(Number);
-    }
-    return value as number[];
-  },
-});
+);
 
 // Enums in tiger_den schema
 export const userRoleEnum = tigerDenSchema.enum("user_role", [
@@ -311,23 +313,29 @@ export const campaigns = tigerDenSchema.table("campaigns", {
 });
 
 // Content Types table
-export const contentTypes = tigerDenSchema.table("content_types", {
-  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  name: varchar("name", { length: 50 }).notNull(),
-  slug: varchar("slug", { length: 50 }).notNull().unique(),
-  color: varchar("color", { length: 20 }).notNull(),
-  displayOrder: integer("display_order").notNull().default(0),
-  isSystem: boolean("is_system").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-}, (table) => ({
-  displayOrderIdx: index("content_types_display_order_idx").on(table.displayOrder),
-}));
+export const contentTypes = tigerDenSchema.table(
+  "content_types",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    name: varchar("name", { length: 50 }).notNull(),
+    slug: varchar("slug", { length: 50 }).notNull().unique(),
+    color: varchar("color", { length: 20 }).notNull(),
+    displayOrder: integer("display_order").notNull().default(0),
+    isSystem: boolean("is_system").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    displayOrderIdx: index("content_types_display_order_idx").on(
+      table.displayOrder,
+    ),
+  }),
+);
 
 // Junction table for content items and campaigns
 export const contentCampaigns = tigerDenSchema.table(
@@ -344,6 +352,19 @@ export const contentCampaigns = tigerDenSchema.table(
     pk: primaryKey({ columns: [table.contentItemId, table.campaignId] }),
   }),
 );
+
+// API Import Schedules - per-source cron settings
+export const apiImportSchedules = tigerDenSchema.table("api_import_schedules", {
+  sourceType: text("source_type").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  cronExpression: text("cron_expression").notNull().default("0 6 * * *"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 // Relations
 export const contentItemsRelations = relations(
