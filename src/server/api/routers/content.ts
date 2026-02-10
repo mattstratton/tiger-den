@@ -34,6 +34,7 @@ export const contentRouter = createTRPCRouter({
         search: z.string().optional(),
         contentTypeIds: z.array(z.number()).optional(),
         campaignIds: z.array(z.string().uuid()).optional(),
+        tags: z.array(z.string()).optional(),
         publishDateFrom: z.string().optional(),
         publishDateTo: z.string().optional(),
         sortBy: z
@@ -72,6 +73,17 @@ export const contentRouter = createTRPCRouter({
       }
       if (input.publishDateTo) {
         conditions.push(lte(contentItems.publishDate, input.publishDateTo));
+      }
+
+      // Tags filter (array overlap)
+      if (input.tags && input.tags.length > 0) {
+        const tagArray = sql.join(
+          input.tags.map((t) => sql`${t}`),
+          sql`, `,
+        );
+        conditions.push(
+          sql`${contentItems.tags} && ARRAY[${tagArray}]::text[]`,
+        );
       }
 
       // Campaign filter
@@ -462,6 +474,13 @@ export const contentRouter = createTRPCRouter({
 
       return item;
     }),
+
+  getDistinctTags: protectedProcedure.query(async ({ ctx }) => {
+    const result = await ctx.db
+      .selectDistinct({ tag: sql<string>`unnest(${contentItems.tags})` })
+      .from(contentItems);
+    return result.map((r) => r.tag).sort();
+  }),
 
   deleteAll: contributorProcedure.mutation(async ({ ctx }) => {
     // Delete all content items (for testing purposes)

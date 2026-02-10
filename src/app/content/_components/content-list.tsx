@@ -30,6 +30,7 @@ interface ContentListProps {
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    tags: string[];
     publishDateFrom: string;
     publishDateTo: string;
   };
@@ -87,6 +88,7 @@ export function ContentList({
     filters.search,
     filters.contentTypeIds,
     filters.campaignIds,
+    filters.tags,
     filters.publishDateFrom,
     filters.publishDateTo,
   ]);
@@ -113,6 +115,7 @@ export function ContentList({
         filters.contentTypeIds.length > 0 ? filters.contentTypeIds : undefined,
       campaignIds:
         filters.campaignIds.length > 0 ? filters.campaignIds : undefined,
+      tags: filters.tags.length > 0 ? filters.tags : undefined,
       publishDateFrom:
         filters.publishDateFrom.length > 0
           ? filters.publishDateFrom
@@ -149,6 +152,7 @@ export function ContentList({
     (debouncedSearch?.length ?? 0) > 0 ||
     filters.contentTypeIds.length > 0 ||
     filters.campaignIds.length > 0 ||
+    filters.tags.length > 0 ||
     filters.publishDateFrom.length > 0 ||
     filters.publishDateTo.length > 0;
 

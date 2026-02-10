@@ -1,10 +1,24 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "~/components/ui/command";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -12,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 
 interface ContentFiltersProps {
@@ -20,6 +35,7 @@ interface ContentFiltersProps {
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    tags: string[];
     publishDateFrom: string;
     publishDateTo: string;
   };
@@ -28,6 +44,7 @@ interface ContentFiltersProps {
     searchMode: "metadata" | "keyword" | "fullContent";
     contentTypeIds: number[];
     campaignIds: string[];
+    tags: string[];
     publishDateFrom: string;
     publishDateTo: string;
   }) => void;
@@ -39,10 +56,13 @@ export function ContentFilters({
 }: ContentFiltersProps) {
   const { data: campaigns } = api.campaigns.list.useQuery();
   const { data: contentTypes } = api.contentTypes.list.useQuery();
+  const { data: distinctTags } = api.content.getDistinctTags.useQuery();
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
   const hasActiveFilters =
     filters.contentTypeIds.length > 0 ||
     filters.campaignIds.length > 0 ||
+    filters.tags.length > 0 ||
     filters.publishDateFrom.length > 0 ||
     filters.publishDateTo.length > 0;
 
@@ -51,8 +71,19 @@ export function ContentFilters({
       ...filters,
       contentTypeIds: [],
       campaignIds: [],
+      tags: [],
       publishDateFrom: "",
       publishDateTo: "",
+    });
+  };
+
+  const handleToggleTag = (tag: string) => {
+    const isSelected = filters.tags.includes(tag);
+    onFiltersChange({
+      ...filters,
+      tags: isSelected
+        ? filters.tags.filter((t) => t !== tag)
+        : [...filters.tags, tag],
     });
   };
 
@@ -110,6 +141,49 @@ export function ContentFilters({
             ))}
           </SelectContent>
         </Select>
+
+        <Popover onOpenChange={setTagPopoverOpen} open={tagPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              aria-expanded={tagPopoverOpen}
+              className="w-[200px] justify-between"
+              role="combobox"
+              variant="outline"
+            >
+              {filters.tags.length > 0
+                ? `${filters.tags.length} tag${filters.tags.length > 1 ? "s" : ""} selected`
+                : "Filter by tags"}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[250px] p-0">
+            <Command>
+              <CommandInput placeholder="Search tags..." />
+              <CommandList>
+                <CommandEmpty>No tags found.</CommandEmpty>
+                <CommandGroup>
+                  {distinctTags?.map((tag) => (
+                    <CommandItem
+                      key={tag}
+                      onSelect={() => handleToggleTag(tag)}
+                      value={tag}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          filters.tags.includes(tag)
+                            ? "opacity-100"
+                            : "opacity-0",
+                        )}
+                      />
+                      {tag}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         <div className="flex items-end gap-2">
           <div className="flex flex-col gap-1">
@@ -186,6 +260,22 @@ export function ContentFilters({
               <X className="h-3 w-3" />
             </Badge>
           )}
+          {filters.tags.map((tag) => (
+            <Badge
+              className="cursor-pointer gap-1"
+              key={tag}
+              onClick={() =>
+                onFiltersChange({
+                  ...filters,
+                  tags: filters.tags.filter((t) => t !== tag),
+                })
+              }
+              variant="secondary"
+            >
+              Tag: {tag}
+              <X className="h-3 w-3" />
+            </Badge>
+          ))}
           {filters.publishDateFrom && (
             <Badge
               className="cursor-pointer gap-1"
