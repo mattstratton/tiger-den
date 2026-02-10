@@ -63,6 +63,13 @@ export function ContentList({
   const [sortBy, setSortBy] = useState<SortColumn>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
+  const utils = api.useUtils();
+  const reindexMutation = api.content.reindexContent.useMutation({
+    onSuccess: () => {
+      void utils.content.getIndexStatus.invalidate();
+    },
+  });
+
   const handleSort = (column: SortColumn) => {
     if (sortBy === column) {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -286,6 +293,7 @@ export function ContentList({
           items={items}
           onDelete={(item) => setDeletingItem(item)}
           onEdit={(id) => setEditingId(id)}
+          onReindex={(id) => reindexMutation.mutate({ id })}
           onSort={handleSort}
           showRelevance={useAdvancedSearch}
           sortBy={sortBy}

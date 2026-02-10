@@ -54,6 +54,7 @@ export const contentRouter = createTRPCRouter({
             ilike(contentItems.title, `%${input.search}%`),
             ilike(contentItems.description, `%${input.search}%`),
             ilike(contentItems.currentUrl, `%${input.search}%`),
+            ilike(contentItems.author, `%${input.search}%`),
           ),
         );
       }
@@ -90,20 +91,22 @@ export const contentRouter = createTRPCRouter({
         conditions.length > 0 ? and(...conditions) : undefined;
 
       const sortDir = input.sortOrder === "asc" ? asc : desc;
+      const nullsLast = input.sortOrder === "desc" ? sql`NULLS LAST` : sql`NULLS FIRST`;
+      const dateExpr = sql`COALESCE(${contentItems.lastModifiedAt}, ${contentItems.publishDate}::timestamptz)`;
       const sortColumnMap = {
         title: contentItems.title,
-        date: contentItems.lastModifiedAt,
+        date: dateExpr,
         type: contentItems.contentTypeId,
         author: contentItems.author,
         createdAt: contentItems.createdAt,
-      } as const;
+      };
       const sortColumn = sortColumnMap[input.sortBy];
 
       const items = await ctx.db.query.contentItems.findMany({
         where: whereClause,
         limit: input.limit,
         offset: input.offset,
-        orderBy: [sortDir(sortColumn)],
+        orderBy: [sql`${sortDir(sortColumn)} ${nullsLast}`],
         with: {
           contentTypeRel: true,
           campaigns: {

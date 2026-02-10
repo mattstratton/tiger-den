@@ -8,6 +8,7 @@ import {
   ExternalLink,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -63,6 +64,7 @@ interface ContentEnhancedTableProps {
   onSort?: (column: SortColumn) => void;
   onEdit: (id: string) => void;
   onDelete: (item: { id: string; title: string }) => void;
+  onReindex?: (id: string) => void;
 }
 
 export function ContentEnhancedTable({
@@ -73,6 +75,7 @@ export function ContentEnhancedTable({
   onSort,
   onEdit,
   onDelete,
+  onReindex,
 }: ContentEnhancedTableProps) {
   function SortableHeader({
     column,
@@ -111,23 +114,23 @@ export function ContentEnhancedTable({
       <Table aria-label="Content inventory" className="table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <SortableHeader className="w-[35%]" column="title">
+            <SortableHeader className="w-[30%]" column="title">
               Title
             </SortableHeader>
-            <SortableHeader className="w-[8%]" column="type">
+            <SortableHeader className="w-[10%]" column="type">
               Type
             </SortableHeader>
             <SortableHeader className="w-[10%]" column="date">
               Date
             </SortableHeader>
             <TableHead className="sticky top-0 w-[12%]">Campaigns</TableHead>
-            <SortableHeader className="w-[12%]" column="author">
+            <SortableHeader className="w-[14%]" column="author">
               Author
             </SortableHeader>
             {showRelevance && (
               <TableHead className="sticky top-0 w-[8%]">Relevance</TableHead>
             )}
-            <TableHead className="sticky top-0 w-[18%]">Index</TableHead>
+            <TableHead className="sticky top-0 w-[8%]">Index</TableHead>
             <TableHead className="sticky top-0 w-10" />
           </TableRow>
         </TableHeader>
@@ -171,7 +174,7 @@ export function ContentEnhancedTable({
                   )}
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="overflow-hidden">
                 <ContentTypeBadge type={item.contentTypeRel} />
               </TableCell>
               <TableCell className="whitespace-nowrap text-sm">
@@ -185,7 +188,7 @@ export function ContentEnhancedTable({
                 <div className="flex flex-wrap gap-1">
                   {item.campaigns.map((cc) => (
                     <Badge
-                      className="text-xs"
+                      className="whitespace-normal text-xs"
                       key={cc.campaign.id}
                       variant="outline"
                     >
@@ -194,7 +197,9 @@ export function ContentEnhancedTable({
                   ))}
                 </div>
               </TableCell>
-              <TableCell className="text-sm">{item.author || "-"}</TableCell>
+              <TableCell className="truncate text-sm">
+                {item.author || "-"}
+              </TableCell>
               {showRelevance && (
                 <TableCell>
                   <span className="text-sm">
@@ -205,15 +210,7 @@ export function ContentEnhancedTable({
                 </TableCell>
               )}
               <TableCell>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center gap-1.5">
-                      <ContentIndexStatus contentId={item.id} />
-                      <ReindexButton contentId={item.id} indexStatus={null} />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>Search index status</TooltipContent>
-                </Tooltip>
+                <ContentIndexStatus contentId={item.id} />
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -231,6 +228,10 @@ export function ContentEnhancedTable({
                     <DropdownMenuItem onClick={() => onEdit(item.id)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onReindex?.(item.id)}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh index
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
