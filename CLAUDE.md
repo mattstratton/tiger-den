@@ -6,7 +6,7 @@ Content inventory tracking system for marketing. Tracks published content (YouTu
 
 ## Product Brief
 
-Centralized database for all marketing content inventory. Supports manual entry, CSV import/export, search and filtering, campaign management, and URL change tracking. Built for future integration with CMS APIs and Asana webhooks.
+Centralized database for all marketing content inventory. Supports manual entry, CSV import/export, CMS API imports (Ghost, Contentful), YouTube transcript indexing, search and filtering, campaign management, and URL change tracking.
 
 ## Tech Stack
 
@@ -14,7 +14,7 @@ Centralized database for all marketing content inventory. Supports manual entry,
 - **Backend**: tRPC, NextAuth.js v5 with Google OAuth
 - **Database**: PostgreSQL (TimescaleDB) with Drizzle ORM
 - **State Management**: TanStack Query (React Query) v5
-- **Search**: pg_textsearch (BM25), pgvector (embeddings), pgai (auto-embedding)
+- **Search**: pg_textsearch (BM25), pgvector (embeddings), OpenAI text-embedding-3-small
 
 ## Database
 
@@ -25,10 +25,12 @@ Centralized database for all marketing content inventory. Supports manual entry,
 
 All tables use the `tiger_den` schema via `pgSchema()`.
 
+Always use the Tiger Cloud MCP tools (`mcp__tiger__db_execute_query`) for database operations — do not default to raw shell commands or manual setup. Check available MCP tools before starting any database-related task.
+
 ### Extensions Enabled
 - `vector` - pgvector for embeddings storage
 - `pg_textsearch` - BM25 keyword search
-- `pgai` - Automated embedding generation
+- `pgai` - Available but not yet in use (future: pgai Vectorizer for automated embedding generation)
 
 ### Database User Configuration
 The `tiger_den` user requires the correct search_path to access pgvector types:
@@ -40,6 +42,18 @@ This is handled automatically by the migration `0003_add_search_path.sql`.
 ## System Requirements
 
 - **Node.js**: v20 or later
+
+## File Handling
+
+Do not attempt to read large binary files (PDFs, images) directly. If the user references a PDF or large file, ask them to paste relevant excerpts or summarize the content instead.
+
+## Language & Types
+
+This is a TypeScript project. Always use TypeScript (not JavaScript) for new files. Ensure proper types — do not use `any` or leave non-optional fields undefined. Run `tsc --noEmit` to check types after edits.
+
+## Data Pipeline / Import
+
+When implementing import pipelines or data ingestion, always include indexing/embedding generation as part of the import step — never leave it as a separate manual re-index unless explicitly asked.
 
 ## Commands
 
@@ -54,13 +68,26 @@ npm run db:studio    # Open Drizzle Studio
 npm run check        # Linter and type checks
 ```
 
+## General Workflow
+
+When implementing features, start writing code quickly. Limit exploration/planning to at most 2-3 minutes of tool calls before producing implementation code. If you need more context, ask the user rather than exhaustively scanning the codebase.
+
+## Git Workflow
+
+Do NOT use git worktrees. Commit and push directly on the current branch.
+
+## Debugging Guidelines
+
+When debugging, stop after 3 failed attempts at the same approach and reassess the root cause before trying more code changes. Prefer investigating (logs, docs, config) over blindly iterating on code fixes.
+
+
 ## Key Features
 
 ### Content Management
 - Create, read, update, delete content items
 - Track title, URL (with history), content type, publish date, description, author, target audience, tags
 - Link content to campaigns (many-to-many)
-- Source tracking (manual, csv_import, future: cms_api, asana_webhook)
+- Source tracking (manual, csv_import, ghost_api, contentful_api, future: asana_webhook)
 
 ### Campaign Management
 - Create, read, update, delete campaigns
@@ -77,10 +104,9 @@ npm run check        # Linter and type checks
 - Template download
 
 ### Search & Filtering
-- Global search (title, description, URL)
-- Filter by content type
-- Filter by campaign
-- Date range filter (future)
+- Three search modes: metadata (title/description/URL/author), keyword (BM25 full-text), full content (hybrid semantic + keyword with RRF fusion)
+- Filter by content type, campaign, tag (multi-select combobox), date range
+- Author search
 - Pagination (50 items per page)
 
 ### Authentication
@@ -91,12 +117,13 @@ npm run check        # Linter and type checks
 
 ### Content Indexing & Hybrid Search
 - Full-text indexing of web pages and YouTube transcripts
-- Hybrid search: BM25 keyword + semantic vector with RRF fusion
-- Leverages Tiger Cloud: pg_textsearch, pgvectorscale, pgai Vectorizer
+- Hybrid search: BM25 keyword + semantic vector (OpenAI text-embedding-3-small) with RRF fusion
+- Leverages Tiger Cloud: pg_textsearch, pgvector (halfvec(1536))
 - Sync indexing for ≤10 items (configurable threshold)
-- Async queue for bulk imports (Phase 2)
+- Scheduled imports via Vercel Cron for Ghost, Contentful, and YouTube
 - Manual re-index for failed/pending items
 - Status tracking: pending, indexed, failed
+- Future: migrate to pgai Vectorizer for automated embedding generation
 
 ## Key Patterns
 
@@ -113,10 +140,10 @@ import { api } from "~/trpc/server";
 - Client components in `_components/` directories
 
 ### tRPC Procedures
-- All procedures use `protectedProcedure` (require auth)
-- Content router: list, getById, create, update, delete
-- Campaigns router: list, create, update, delete
-- CSV router: import, export
+- `protectedProcedure` for read-only operations (require auth)
+- `contributorProcedure` for create/update/delete operations (requires contributor or admin role)
+- `adminProcedure` for admin-only operations (user management, API imports)
+- Key routers: content, campaigns, contentTypes, csv, users, admin
 
 ### Database Queries
 Use Drizzle ORM:
@@ -132,15 +159,15 @@ await db.query.contentItems.findMany({
 ## Future Features
 
 Tracked for future implementation:
-- CMS API integration (auto-import on publish)
 - Asana webhook integration (trigger on "published" status)
 - CSV field mapping UI
 - Type-specific metadata fields (video duration, word count, etc.)
 - Bulk editing
-- Advanced filtering and saved filters
+- Saved filters
 - API endpoints for external systems/AI agents
 - Analytics dashboard
-- Role-based access control
+- pgai Vectorizer for automated embedding generation (replace manual OpenAI calls)
+- Metadata-enriched search chunks (prepend title/tags/type to chunks before embedding — see GitHub issue #4)
 
 ## Development Notes
 
