@@ -1,7 +1,12 @@
 "use client";
 
-import { api } from "~/trpc/react";
 import { Loading } from "~/components/ui/loading";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+import { api } from "~/trpc/react";
 
 interface ContentIndexStatusProps {
   contentId: string;
@@ -32,27 +37,41 @@ export function ContentIndexStatus({ contentId }: ContentIndexStatusProps) {
   switch (indexStatus.indexStatus) {
     case "indexed":
       return (
-        <span
-          className="rounded-full bg-green-100 px-2 py-1 text-green-700 text-xs"
-          title={`Indexed ${indexStatus.wordCount} words, ${indexStatus.tokenCount} tokens`}
-        >
-          ✓ Indexed
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="cursor-default rounded-full bg-green-100 px-2 py-1 text-green-700 text-xs"
+            >
+              Indexed
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {indexStatus.wordCount} words, {indexStatus.tokenCount} tokens
+          </TooltipContent>
+        </Tooltip>
       );
     case "pending":
       return (
         <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-700">
-          ⏳ Pending
+          Pending
         </span>
       );
     case "failed":
       return (
-        <span
-          className="rounded-full bg-red-100 px-2 py-1 text-red-700 text-xs"
-          title={indexStatus.indexError ?? "Unknown error"}
-        >
-          ✗ Failed
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="cursor-default rounded-full bg-red-100 px-2 py-1 text-red-700 text-xs"
+            >
+              Failed
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            {indexStatus.indexError ?? "Unknown error"}
+          </TooltipContent>
+        </Tooltip>
       );
     default:
       return null;

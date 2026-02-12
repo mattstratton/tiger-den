@@ -221,6 +221,43 @@ class YouTubeAPIClient {
     return videos[0] ?? null;
   }
 
+  /**
+   * Fetch metadata (title, publishDate, author) for multiple video IDs in batches of 50.
+   * Returns a Map of videoId → metadata.
+   */
+  async fetchVideoMetadataBatch(
+    videoIds: string[],
+  ): Promise<
+    Map<string, { title: string; publishDate: string | null; author: string }>
+  > {
+    const result = new Map<
+      string,
+      { title: string; publishDate: string | null; author: string }
+    >();
+
+    for (let i = 0; i < videoIds.length; i += 50) {
+      const batch = videoIds.slice(i, i + 50);
+      const videos = await this.fetchVideoDetails(batch);
+
+      for (const video of videos) {
+        result.set(video.id, {
+          title: video.title,
+          publishDate: video.publishedAt
+            ? (video.publishedAt.split("T")[0] ?? null)
+            : null,
+          author: video.channelTitle,
+        });
+      }
+
+      // Rate limiting between batches
+      if (i + 50 < videoIds.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    return result;
+  }
+
   private async fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideo[]> {
     if (videoIds.length === 0) return [];
 

@@ -37,8 +37,7 @@ const CONTENT_TYPES = [
   "other",
 ] as const;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const URL_REGEX =
-  /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
 
 function validateCsvRows(
   rows: Array<Record<string, unknown>>,
@@ -59,14 +58,30 @@ function validateCsvRows(
     const rowNum = i + 2;
     const url = row.current_url;
     if (url === undefined || url === null || String(url).trim() === "") {
-      errors.push({ row: rowNum, message: "current_url is required", field: "current_url" });
+      errors.push({
+        row: rowNum,
+        message: "current_url is required",
+        field: "current_url",
+      });
     } else if (!URL_REGEX.test(String(url).trim())) {
-      errors.push({ row: rowNum, message: "Invalid URL format", field: "current_url" });
+      errors.push({
+        row: rowNum,
+        message: "Invalid URL format",
+        field: "current_url",
+      });
     }
     const ct = row.content_type;
     if (ct === undefined || ct === null || String(ct).trim() === "") {
-      errors.push({ row: rowNum, message: "content_type is required", field: "content_type" });
-    } else if (!CONTENT_TYPES.includes(String(ct).trim() as (typeof CONTENT_TYPES)[number])) {
+      errors.push({
+        row: rowNum,
+        message: "content_type is required",
+        field: "content_type",
+      });
+    } else if (
+      !CONTENT_TYPES.includes(
+        String(ct).trim() as (typeof CONTENT_TYPES)[number],
+      )
+    ) {
       errors.push({
         row: rowNum,
         message: `content_type must be one of: ${CONTENT_TYPES.join(", ")}`,
@@ -101,9 +116,9 @@ interface ImportResult {
     field?: string;
   }>;
   enrichment?: {
-    attempted: number;
-    successful: number;
-    failed: number;
+    title: { attempted: number; successful: number; failed: number };
+    date: { attempted: number; successful: number; failed: number };
+    author: { attempted: number; successful: number; failed: number };
   };
   indexed: number;
   indexingFailed: number;
@@ -437,7 +452,11 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               successful: 0,
               failed: 0,
               errors: [
-                { row: 0, message: "CSV exceeds 1000 row limit. Split into smaller files." },
+                {
+                  row: 0,
+                  message:
+                    "CSV exceeds 1000 row limit. Split into smaller files.",
+                },
               ],
               indexed: 0,
               indexingFailed: 0,
@@ -465,7 +484,9 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               indexingFailed: 0,
               validationOnly: true,
             });
-            toast.success(`Validation passed: ${rows.length} row(s) ready to import`);
+            toast.success(
+              `Validation passed: ${rows.length} row(s) ready to import`,
+            );
           }
         },
       });
@@ -665,7 +686,9 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {result.errors.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm">
-                    {result.validationOnly ? "Validation issues:" : "Error Details:"}
+                    {result.validationOnly
+                      ? "Validation issues:"
+                      : "Error Details:"}
                   </h4>
                   <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-4">
                     {result.errors.map((error, index) => (
@@ -687,17 +710,42 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               )}
 
               {/* Enrichment Results (import only) */}
-              {result.enrichment && result.enrichment.attempted > 0 && !result.validationOnly && (
-                <Alert>
-                  <AlertTitle>Title Enrichment</AlertTitle>
-                  <AlertDescription>
-                    Fetched {result.enrichment.successful} of{" "}
-                    {result.enrichment.attempted} titles from URLs.
-                    {result.enrichment.failed > 0 &&
-                      ` (${result.enrichment.failed} failed)`}
-                  </AlertDescription>
-                </Alert>
-              )}
+              {result.enrichment &&
+                !result.validationOnly &&
+                (result.enrichment.title.attempted > 0 ||
+                  result.enrichment.date.attempted > 0 ||
+                  result.enrichment.author.attempted > 0) && (
+                  <Alert>
+                    <AlertTitle>Metadata Enrichment</AlertTitle>
+                    <AlertDescription className="space-y-1">
+                      {result.enrichment.title.attempted > 0 && (
+                        <div>
+                          Titles: fetched {result.enrichment.title.successful}{" "}
+                          of {result.enrichment.title.attempted}
+                          {result.enrichment.title.failed > 0 &&
+                            ` (${result.enrichment.title.failed} failed)`}
+                        </div>
+                      )}
+                      {result.enrichment.date.attempted > 0 && (
+                        <div>
+                          Publish dates: fetched{" "}
+                          {result.enrichment.date.successful} of{" "}
+                          {result.enrichment.date.attempted}
+                          {result.enrichment.date.failed > 0 &&
+                            ` (${result.enrichment.date.failed} failed)`}
+                        </div>
+                      )}
+                      {result.enrichment.author.attempted > 0 && (
+                        <div>
+                          Authors: fetched {result.enrichment.author.successful}{" "}
+                          of {result.enrichment.author.attempted}
+                          {result.enrichment.author.failed > 0 &&
+                            ` (${result.enrichment.author.failed} failed)`}
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
               {/* Indexing Results (import only) */}
               {result.successful > 0 && !result.validationOnly && (
@@ -724,7 +772,9 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                     setValidating(false);
                   }}
                 >
-                  {result.validationOnly ? "Validate another file" : "Import Another File"}
+                  {result.validationOnly
+                    ? "Validate another file"
+                    : "Import Another File"}
                 </Button>
               </div>
             </div>

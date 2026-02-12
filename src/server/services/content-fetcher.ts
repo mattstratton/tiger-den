@@ -26,11 +26,11 @@ export class ContentFetchError extends Error {
 
 /**
  * Extract YouTube video ID from URL
- * Supports: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+ * Supports: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, youtube.com/shorts/ID
  */
 export function extractYouTubeVideoId(url: string): string | null {
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
   ];
 
   for (const pattern of patterns) {

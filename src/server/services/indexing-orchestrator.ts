@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { indexingConfig } from "~/server/config/indexing-config";
 import { db } from "~/server/db";
 import { contentChunks, contentText } from "~/server/db/schema";
+import { getQueue } from "~/server/queue/indexing-queue";
 import { chunkContent } from "./content-chunker";
 import { ContentFetchError, fetchContent } from "./content-fetcher";
-import { getQueue } from "~/server/queue/indexing-queue";
 import { generateEmbedding } from "./embeddings";
 
 export interface IndexingResult {
@@ -30,6 +30,40 @@ function calculateHash(text: string): string {
 }
 
 /**
+ * Persist an indexing failure to the database.
+ * Creates a content_text row if one doesn't exist, or updates the existing one.
+ */
+async function persistFailure(
+  contentItemId: string,
+  errorMsg: string,
+): Promise<void> {
+  try {
+    await db
+      .insert(contentText)
+      .values({
+        contentItemId,
+        fullText: "",
+        plainText: "",
+        wordCount: 0,
+        tokenCount: 0,
+        contentHash: "",
+        crawlDurationMs: 0,
+        indexStatus: "failed",
+        indexError: errorMsg,
+      })
+      .onConflictDoUpdate({
+        target: contentText.contentItemId,
+        set: {
+          indexStatus: "failed",
+          indexError: errorMsg,
+        },
+      });
+  } catch (dbError) {
+    console.error("Failed to persist indexing failure:", dbError);
+  }
+}
+
+/**
  * Index a single content item
  * Fetches content, chunks it, stores in database
  */
@@ -43,10 +77,12 @@ export async function indexSingleItem(
 
     // Handle empty content (e.g., no YouTube transcript)
     if (!fetchResult.plainText) {
+      const errorMsg = "No content available (empty or transcript unavailable)";
+      await persistFailure(contentItemId, errorMsg);
       return {
         success: false,
         contentItemId,
-        error: "No content available (empty or transcript unavailable)",
+        error: errorMsg,
       };
     }
 
@@ -59,15 +95,20 @@ export async function indexSingleItem(
       // Check if the final URL already exists for a different content item
       const existingItem = await db.query.contentItems.findFirst({
         where: (items, { eq, and, ne }) =>
-          and(eq(items.currentUrl, fetchResult.finalUrl), ne(items.id, contentItemId)),
+          and(
+            eq(items.currentUrl, fetchResult.finalUrl),
+            ne(items.id, contentItemId),
+          ),
         columns: { id: true, title: true },
       });
 
       if (existingItem) {
+        const errorMsg = `URL redirects to ${fetchResult.finalUrl} which already exists (${existingItem.title})`;
+        await persistFailure(contentItemId, errorMsg);
         return {
           success: false,
           contentItemId,
-          error: `URL redirects to ${fetchResult.finalUrl} which already exists (${existingItem.title})`,
+          error: errorMsg,
         };
       }
     }
@@ -122,7 +163,10 @@ export async function indexSingleItem(
             embedding: embedding, // Pass array directly - Drizzle handles halfvec conversion
           };
         } catch (error) {
-          console.error(`Failed to generate embedding for chunk ${chunk.index}:`, error);
+          console.error(
+            `Failed to generate embedding for chunk ${chunk.index}:`,
+            error,
+          );
           // Store chunk without embedding rather than failing entirely
           return {
             contentTextId: contentTextRecord.id,
@@ -151,39 +195,20 @@ export async function indexSingleItem(
       contentItemId,
     };
   } catch (error) {
-    // Store error in database
-    try {
-      const existing = await db.query.contentText.findFirst({
-        where: eq(contentText.contentItemId, contentItemId),
-      });
+    const errorMsg =
+      error instanceof ContentFetchError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Unknown error";
 
-      if (existing) {
-        await db
-          .update(contentText)
-          .set({
-            indexStatus: "failed",
-            indexError:
-              error instanceof ContentFetchError
-                ? error.message
-                : error instanceof Error
-                  ? error.message
-                  : "Unknown error",
-          })
-          .where(eq(contentText.id, existing.id));
-      }
-    } catch (dbError) {
-      console.error("Failed to update error status:", dbError);
-    }
+    // Persist failure to database
+    await persistFailure(contentItemId, errorMsg);
 
     return {
       success: false,
       contentItemId,
-      error:
-        error instanceof ContentFetchError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Unknown error",
+      error: errorMsg,
     };
   }
 }
@@ -229,7 +254,10 @@ export async function indexFromExistingContent(
             embedding,
           };
         } catch (error) {
-          console.error(`Failed to generate embedding for chunk ${chunk.index}:`, error);
+          console.error(
+            `Failed to generate embedding for chunk ${chunk.index}:`,
+            error,
+          );
           return {
             contentTextId: record.id,
             chunkText: chunk.text,

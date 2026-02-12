@@ -20,9 +20,9 @@ export interface CompleteEvent {
     field?: string;
   }>;
   enrichment?: {
-    attempted: number;
-    successful: number;
-    failed: number;
+    title: { attempted: number; successful: number; failed: number };
+    date: { attempted: number; successful: number; failed: number };
+    author: { attempted: number; successful: number; failed: number };
   };
   indexed: number;
   indexingFailed: number;

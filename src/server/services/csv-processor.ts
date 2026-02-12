@@ -2,11 +2,15 @@ import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { ZodError, z } from "zod";
 import * as schema from "~/server/db/schema";
-import { fetchPageTitle } from "~/server/services/title-fetcher";
+import { extractYouTubeVideoId } from "~/server/services/content-fetcher";
+import {
+  fetchUrlMetadata,
+  fetchUrlMetadataBatch,
+} from "~/server/services/publish-date-fetcher";
 import { parseFlexibleDate } from "~/server/utils/date-parser";
 import { indexContent } from "./indexing-orchestrator";
 
-const { contentItems, contentCampaigns, campaigns, contentTypes } = schema;
+const { contentItems, contentCampaigns, campaigns } = schema;
 
 // CSV row schema with snake_case column names
 const csvRowSchema = z.object({
@@ -44,11 +48,17 @@ interface EnrichmentStats {
   failed: number;
 }
 
+export interface MetadataEnrichmentStats {
+  title: EnrichmentStats;
+  date: EnrichmentStats;
+  author: EnrichmentStats;
+}
+
 export interface ProcessResult {
   successful: number;
   failed: number;
   errors: ImportError[];
-  enrichment: EnrichmentStats;
+  enrichment: MetadataEnrichmentStats;
   indexed: number;
   indexingFailed: number;
 }
@@ -58,6 +68,10 @@ export interface ProgressEvent {
   current: number;
   total: number;
   message: string;
+}
+
+function isBlank(value: unknown): boolean {
+  return !value || (typeof value === "string" && value.trim() === "");
 }
 
 /**
@@ -81,40 +95,137 @@ export async function processImportWithProgress(
 
   // Fetch all content types and create slug-to-ID mapping
   const allContentTypes = await db.query.contentTypes.findMany();
-  const contentTypeMap = new Map(
-    allContentTypes.map((ct) => [ct.slug, ct.id]),
-  );
+  const contentTypeMap = new Map(allContentTypes.map((ct) => [ct.slug, ct.id]));
   const otherTypeId = allContentTypes.find((ct) => ct.isSystem)?.id;
 
   if (!otherTypeId) {
     throw new Error("System 'Other' content type not found");
   }
 
-  // Enrich blank titles by fetching from URLs
-  const enrichmentStats: EnrichmentStats = {
-    attempted: 0,
-    successful: 0,
-    failed: 0,
+  const enrichmentStats: MetadataEnrichmentStats = {
+    title: { attempted: 0, successful: 0, failed: 0 },
+    date: { attempted: 0, successful: 0, failed: 0 },
+    author: { attempted: 0, successful: 0, failed: 0 },
   };
 
-  // Phase 1: Enrichment
+  // Phase 1a: Batch YouTube pre-fetch
+  // Collect YouTube URLs that need any metadata
+  const youtubeRowIndices: number[] = [];
+  const youtubeUrls: string[] = [];
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
+    const url = row.current_url;
+    if (typeof url !== "string") continue;
 
-    // Only attempt enrichment if title is blank
+    const videoId = extractYouTubeVideoId(url);
     if (
-      !row.title ||
-      (typeof row.title === "string" && row.title.trim() === "")
+      videoId &&
+      (isBlank(row.title) || isBlank(row.publish_date) || isBlank(row.author))
     ) {
-      enrichmentStats.attempted++;
-      const fetchedTitle = await fetchPageTitle(row.current_url as string);
+      youtubeRowIndices.push(i);
+      youtubeUrls.push(url);
+    }
+  }
 
-      if (fetchedTitle) {
-        row.title = fetchedTitle;
-        enrichmentStats.successful++;
+  if (youtubeUrls.length > 0) {
+    const ytMetadata = await fetchUrlMetadataBatch(youtubeUrls);
+
+    for (let j = 0; j < youtubeRowIndices.length; j++) {
+      const rowIdx = youtubeRowIndices[j]!;
+      const row = rows[rowIdx]!;
+      const url = youtubeUrls[j]!;
+      const meta = ytMetadata.get(url);
+      if (!meta) continue;
+
+      if (isBlank(row.title)) {
+        enrichmentStats.title.attempted++;
+        if (meta.title) {
+          row.title = meta.title;
+          enrichmentStats.title.successful++;
+        } else {
+          enrichmentStats.title.failed++;
+        }
+      }
+
+      if (isBlank(row.publish_date)) {
+        enrichmentStats.date.attempted++;
+        if (meta.publishDate) {
+          row.publish_date = meta.publishDate;
+          enrichmentStats.date.successful++;
+        } else {
+          enrichmentStats.date.failed++;
+        }
+      }
+
+      if (isBlank(row.author)) {
+        enrichmentStats.author.attempted++;
+        if (meta.author) {
+          row.author = meta.author;
+          enrichmentStats.author.successful++;
+        } else {
+          enrichmentStats.author.failed++;
+        }
+      }
+    }
+
+    if (sendEvent) {
+      sendEvent({
+        phase: "enriching",
+        current: youtubeUrls.length,
+        total: rows.length,
+        message: `Enriched ${youtubeUrls.length} YouTube URLs`,
+      });
+    }
+  }
+
+  // Phase 1b: Individual web page enrichment
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const url = row.current_url;
+    if (typeof url !== "string") continue;
+
+    // Skip YouTube URLs (already handled in batch)
+    if (extractYouTubeVideoId(url)) continue;
+
+    // Check if any metadata is needed
+    const needsTitle = isBlank(row.title);
+    const needsDate = isBlank(row.publish_date);
+    const needsAuthor = isBlank(row.author);
+
+    if (!needsTitle && !needsDate && !needsAuthor) continue;
+
+    const meta = await fetchUrlMetadata(url);
+
+    if (needsTitle) {
+      enrichmentStats.title.attempted++;
+      if (meta.title) {
+        row.title = meta.title;
+        enrichmentStats.title.successful++;
       } else {
-        enrichmentStats.failed++;
+        enrichmentStats.title.failed++;
+      }
+    }
+
+    if (needsDate) {
+      enrichmentStats.date.attempted++;
+      if (meta.publishDate) {
+        row.publish_date = meta.publishDate;
+        enrichmentStats.date.successful++;
+      } else {
+        enrichmentStats.date.failed++;
+      }
+    }
+
+    if (needsAuthor) {
+      enrichmentStats.author.attempted++;
+      if (meta.author) {
+        row.author = meta.author;
+        enrichmentStats.author.successful++;
+      } else {
+        enrichmentStats.author.failed++;
       }
     }
 
@@ -124,18 +235,26 @@ export async function processImportWithProgress(
         phase: "enriching",
         current: i + 1,
         total: rows.length,
-        message: `Enriched ${i + 1} of ${rows.length} titles`,
+        message: `Enriching metadata: ${i + 1} of ${rows.length} rows`,
       });
     }
   }
 
   // Final enrichment progress
-  if (sendEvent && enrichmentStats.attempted > 0) {
+  const totalAttempted =
+    enrichmentStats.title.attempted +
+    enrichmentStats.date.attempted +
+    enrichmentStats.author.attempted;
+  if (sendEvent && totalAttempted > 0) {
+    const totalSuccessful =
+      enrichmentStats.title.successful +
+      enrichmentStats.date.successful +
+      enrichmentStats.author.successful;
     sendEvent({
       phase: "enriching",
       current: rows.length,
       total: rows.length,
-      message: `Enrichment complete: ${enrichmentStats.successful}/${enrichmentStats.attempted} successful`,
+      message: `Enrichment complete: ${totalSuccessful}/${totalAttempted} fields populated`,
     });
   }
 

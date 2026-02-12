@@ -2,13 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 const LAST_CONTENT_TYPE_KEY = "tiger-den-last-content-type-id";
+
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -70,6 +71,7 @@ export function ContentFormDialog({
 }: ContentFormDialogProps) {
   const utils = api.useUtils();
   const [_date, _setDate] = useState<Date>();
+  const [metadataUrl, setMetadataUrl] = useState<string | null>(null);
 
   // Fetch content types
   const { data: contentTypes } = api.contentTypes.list.useQuery();
@@ -79,6 +81,13 @@ export function ContentFormDialog({
     { id: contentId! },
     { enabled: !!contentId },
   );
+
+  // Auto-fetch metadata from URL (create mode only)
+  const { data: urlMetadata, isFetching: isMetadataFetching } =
+    api.content.fetchUrlMetadata.useQuery(
+      { url: metadataUrl! },
+      { enabled: !!metadataUrl && !contentId },
+    );
 
   const form = useForm<ContentFormValues>({
     resolver: zodResolver(contentFormSchema),
@@ -126,6 +135,56 @@ export function ContentFormDialog({
       });
     }
   }, [existingContent, contentTypes, form, defaultContentTypeId]);
+
+  // Clear metadataUrl when dialog closes or switches to edit
+  useEffect(() => {
+    if (!open) {
+      setMetadataUrl(null);
+    }
+  }, [open]);
+
+  // Apply fetched metadata to empty form fields
+  useEffect(() => {
+    if (!urlMetadata) return;
+
+    const currentTitle = form.getValues("title");
+    if (!currentTitle && urlMetadata.title) {
+      form.setValue("title", urlMetadata.title);
+    }
+
+    const currentDate = form.getValues("publishDate");
+    if (!currentDate && urlMetadata.publishDate) {
+      form.setValue("publishDate", urlMetadata.publishDate);
+    }
+
+    const currentAuthor = form.getValues("author");
+    if (!currentAuthor && urlMetadata.author) {
+      form.setValue("author", urlMetadata.author);
+    }
+  }, [urlMetadata, form]);
+
+  const handleUrlBlur = () => {
+    // Only auto-fetch in create mode
+    if (contentId) return;
+
+    const url = form.getValues("currentUrl");
+    if (!url) return;
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      return;
+    }
+
+    // Only fetch if at least one target field is empty
+    const title = form.getValues("title");
+    const date = form.getValues("publishDate");
+    const author = form.getValues("author");
+    if (title && date && author) return;
+
+    setMetadataUrl(url);
+  };
 
   const createMutation = api.content.create.useMutation({
     onSuccess: (_data, variables) => {
@@ -228,7 +287,19 @@ export function ContentFormDialog({
                   <FormItem>
                     <FormLabel>URL *</FormLabel>
                     <FormControl>
-                      <Input {...field} type="url" />
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          onBlur={() => {
+                            field.onBlur();
+                            handleUrlBlur();
+                          }}
+                          type="url"
+                        />
+                        {isMetadataFetching && (
+                          <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -266,10 +337,10 @@ export function ContentFormDialog({
                   <FormItem>
                     <FormLabel>Content Type *</FormLabel>
                     <Select
-                      value={field.value?.toString()}
                       onValueChange={(value) =>
                         field.onChange(parseInt(value, 10))
                       }
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>

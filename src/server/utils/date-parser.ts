@@ -27,6 +27,12 @@ export function parseFlexibleDate(dateString: string): string | null {
 
   const trimmed = dateString.trim();
 
+  // Handle ISO 8601 datetime (e.g., "2024-02-15T10:30:00Z" from YouTube/meta tags)
+  // Strip time component before running through format loop
+  const normalized = trimmed.includes("T")
+    ? (trimmed.split("T")[0] ?? trimmed)
+    : trimmed;
+
   // Format strings in priority order
   // Most common formats first for performance
   const formats = [
@@ -45,7 +51,7 @@ export function parseFlexibleDate(dateString: string): string | null {
   // Try each format until one succeeds
   for (const formatString of formats) {
     try {
-      const parsed = parse(trimmed, formatString, new Date());
+      const parsed = parse(normalized, formatString, new Date());
 
       // Check if the parsed date is valid
       if (isValid(parsed)) {

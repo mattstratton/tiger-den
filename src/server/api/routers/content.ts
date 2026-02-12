@@ -25,6 +25,7 @@ import {
 import { generateEmbedding } from "~/server/services/embeddings";
 import { indexContent } from "~/server/services/indexing-orchestrator";
 import { keywordSearch } from "~/server/services/keyword-search";
+import { fetchUrlMetadata } from "~/server/services/publish-date-fetcher";
 import { hybridSearch } from "~/server/services/search-service";
 
 export const contentRouter = createTRPCRouter({
@@ -499,6 +500,13 @@ export const contentRouter = createTRPCRouter({
       .from(contentItems);
     return result.map((r) => r.tag).sort();
   }),
+
+  fetchUrlMetadata: protectedProcedure
+    .input(z.object({ url: z.string().url() }))
+    .query(async ({ input }) => {
+      const metadata = await fetchUrlMetadata(input.url);
+      return metadata;
+    }),
 
   deleteAll: contributorProcedure.mutation(async ({ ctx }) => {
     // Delete all content items (for testing purposes)
