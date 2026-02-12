@@ -32,8 +32,9 @@ export async function fetchYouTubeTranscriptViaNpm(
   if (innertubeResult) return innertubeResult;
 
   // Fall back to Supadata if configured
-  if (env.SUPADATA_API_KEY) {
-    console.log(`[YouTube] Innertube failed for ${videoId}, trying Supadata`);
+  const hasSupadata = !!env.SUPADATA_API_KEY;
+  console.log(`[YouTube] Innertube failed for ${videoId}, Supadata configured: ${hasSupadata}`);
+  if (hasSupadata) {
     return fetchViaSupadata(videoId);
   }
 
