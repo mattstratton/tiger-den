@@ -153,6 +153,21 @@ async function fetchViaInnertube(
   }
 }
 
+/** Track last Supadata request time for rate limiting (1 req/sec on free plan) */
+let lastSupadataRequestMs = 0;
+const SUPADATA_MIN_INTERVAL_MS = 1_100; // 1.1s between requests
+const SUPADATA_MAX_RETRIES = 2;
+
+async function supadataRateLimit(): Promise<void> {
+  const now = Date.now();
+  const elapsed = now - lastSupadataRequestMs;
+  if (elapsed < SUPADATA_MIN_INTERVAL_MS) {
+    const waitMs = SUPADATA_MIN_INTERVAL_MS - elapsed;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  lastSupadataRequestMs = Date.now();
+}
+
 /**
  * Fetch transcript via Supadata API (reliable from cloud environments).
  * See: https://docs.supadata.ai/get-transcript
@@ -165,31 +180,46 @@ async function fetchViaSupadata(
       `https://www.youtube.com/watch?v=${videoId}`,
     );
     const url = `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&text=true`;
-    console.log(`[SUPADATA] request: ${url}`);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
-    let resp: Response;
-    try {
-      resp = await fetch(url, {
-        headers: {
-          "x-api-key": env.SUPADATA_API_KEY!,
-        },
-        signal: controller.signal,
-      });
-    } catch (fetchErr) {
-      clearTimeout(timeout);
-      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-        console.warn(`[SUPADATA] timeout (30s) for ${videoId}`);
-        return null;
+    let resp: Response | null = null;
+    for (let attempt = 0; attempt <= SUPADATA_MAX_RETRIES; attempt++) {
+      await supadataRateLimit();
+
+      if (attempt > 0) {
+        console.log(`[SUPADATA] retry ${attempt} for ${videoId}`);
       }
-      throw fetchErr;
-    }
-    clearTimeout(timeout);
+      console.log(`[SUPADATA] request: ${videoId}`);
 
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      console.warn(`[SUPADATA] returned ${resp.status} for ${videoId}: ${body}`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+      try {
+        resp = await fetch(url, {
+          headers: {
+            "x-api-key": env.SUPADATA_API_KEY!,
+          },
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+          console.warn(`[SUPADATA] timeout (30s) for ${videoId}`);
+          return null;
+        }
+        throw fetchErr;
+      }
+      clearTimeout(timeout);
+
+      if (resp.status === 429) {
+        console.warn(`[SUPADATA] rate limited (429) for ${videoId}, waiting 2s`);
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        continue;
+      }
+      break;
+    }
+
+    if (!resp || !resp.ok) {
+      const body = resp ? await resp.text().catch(() => "") : "no response";
+      console.warn(`[SUPADATA] returned ${resp?.status ?? "?"} for ${videoId}: ${body}`);
       return null;
     }
 
