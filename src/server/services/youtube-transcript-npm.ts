@@ -27,17 +27,19 @@ const USER_AGENT =
 export async function fetchYouTubeTranscriptViaNpm(
   videoId: string,
 ): Promise<YouTubeTranscriptResult | null> {
-  // Try innertube first
+  // If Supadata is configured, use it directly (innertube is blocked on cloud IPs)
+  if (env.SUPADATA_API_KEY) {
+    console.log(`[SUPADATA] Using Supadata for ${videoId} (API key configured)`);
+    const supadataResult = await fetchViaSupadata(videoId);
+    if (supadataResult) return supadataResult;
+    // If Supadata fails, still try innertube as last resort
+  }
+
+  // Try innertube (works locally, blocked on most cloud IPs)
   const innertubeResult = await fetchViaInnertube(videoId);
   if (innertubeResult) return innertubeResult;
 
-  // Fall back to Supadata if configured
-  const hasSupadata = !!env.SUPADATA_API_KEY;
-  console.log(`[SUPADATA] Innertube failed for ${videoId}, Supadata configured: ${hasSupadata}`);
-  if (hasSupadata) {
-    return fetchViaSupadata(videoId);
-  }
-
+  console.warn(`[YouTube] All transcript methods failed for ${videoId}`);
   return null;
 }
 
