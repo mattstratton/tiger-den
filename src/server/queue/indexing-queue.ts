@@ -9,8 +9,10 @@ const globalForBoss = globalThis as unknown as {
 let boss = globalForBoss.boss;
 
 /**
- * Get or create the pg-boss queue instance
- * Singleton pattern to ensure only one instance exists
+ * Get or create the pg-boss queue instance.
+ * Singleton pattern — also registers the worker on first creation
+ * so the worker only starts when queue operations are needed,
+ * not on every serverless function invocation.
  */
 export async function getQueue(): Promise<PgBoss> {
   if (!boss) {
@@ -22,6 +24,7 @@ export async function getQueue(): Promise<PgBoss> {
       retryDelay: 5, // 5 minutes
       retryBackoff: true, // exponential: 5min, 30min, 2hr
       archiveCompletedAfterSeconds: 86400, // keep completed jobs for 24hrs
+      max: 2, // limit connection pool for serverless
     });
 
     // Assign immediately to prevent race conditions
@@ -31,12 +34,13 @@ export async function getQueue(): Promise<PgBoss> {
     await newBoss.start();
     console.log("[Queue] pg-boss started successfully");
 
-    // Log boss state for debugging
     newBoss.on("error", (error) => {
       console.error("[Queue] pg-boss error:", error);
     });
-  } else {
-    console.log("[Queue] Reusing existing pg-boss instance");
+
+    // Register the worker lazily (only when queue is first accessed)
+    const { registerWorker } = await import("~/server/queue/worker");
+    await registerWorker(newBoss);
   }
 
   return boss;

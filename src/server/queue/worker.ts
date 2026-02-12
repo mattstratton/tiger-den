@@ -1,15 +1,12 @@
+import type PgBoss from "pg-boss";
 import type { IndexJobPayload } from "~/server/queue/indexing-queue";
-import { getQueue } from "~/server/queue/indexing-queue";
 import { indexSingleItem } from "~/server/services/indexing-orchestrator";
 
 /**
- * Start the queue worker to process index-content jobs
- * Worker runs with batch size of 5 for concurrent processing
+ * Register the index-content worker on a pg-boss instance.
+ * Called lazily from getQueue() when the queue is first accessed.
  */
-export async function startWorker() {
-  const queue = await getQueue();
-
-  // Start worker with batch size of 5 for concurrent processing
+export async function registerWorker(queue: PgBoss) {
   await queue.work<IndexJobPayload>(
     "index-content",
     { batchSize: 5 },
@@ -43,5 +40,5 @@ export async function startWorker() {
     },
   );
 
-  console.log("[Worker] Started with batch size of 5");
+  console.log("[Worker] Registered with batch size of 5");
 }

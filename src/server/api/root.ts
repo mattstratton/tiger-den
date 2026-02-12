@@ -8,14 +8,6 @@ import { postRouter } from "~/server/api/routers/post";
 import { queueRouter } from "~/server/api/routers/queue";
 import { usersRouter } from "~/server/api/routers/users";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
-import { startWorker } from "~/server/queue/worker";
-
-// Start queue worker on server startup (skip in test environment)
-if (process.env.NODE_ENV !== "test") {
-  startWorker().catch((error) => {
-    console.error("[Worker] Failed to start:", error);
-  });
-}
 
 /**
  * This is the primary router for your server.
