@@ -33,7 +33,7 @@ export async function fetchYouTubeTranscriptViaNpm(
 
   // Fall back to Supadata if configured
   const hasSupadata = !!env.SUPADATA_API_KEY;
-  console.log(`[YouTube] Innertube failed for ${videoId}, Supadata configured: ${hasSupadata}`);
+  console.log(`[SUPADATA] Innertube failed for ${videoId}, Supadata configured: ${hasSupadata}`);
   if (hasSupadata) {
     return fetchViaSupadata(videoId);
   }
@@ -159,37 +159,58 @@ async function fetchViaSupadata(
   videoId: string,
 ): Promise<YouTubeTranscriptResult | null> {
   try {
-    const url = `https://api.supadata.ai/v1/transcript?url=https://www.youtube.com/watch?v=${videoId}&lang=en&text=true`;
-    const resp = await fetch(url, {
-      headers: {
-        "x-api-key": env.SUPADATA_API_KEY!,
-      },
-    });
+    const youtubeUrl = encodeURIComponent(
+      `https://www.youtube.com/watch?v=${videoId}`,
+    );
+    // Try English first, fall back to any language
+    const attempts = [
+      `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&lang=en&text=true`,
+      `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&text=true`,
+    ];
 
-    if (!resp.ok) {
-      console.warn(`[YouTube] Supadata returned ${resp.status} for ${videoId}`);
-      return null;
+    for (const url of attempts) {
+      console.log(`[SUPADATA] request: ${url}`);
+      const resp = await fetch(url, {
+        headers: {
+          "x-api-key": env.SUPADATA_API_KEY!,
+        },
+      });
+
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        console.warn(
+          `[SUPADATA] returned ${resp.status} for ${videoId}: ${body}`,
+        );
+        continue;
+      }
+
+      const data = (await resp.json()) as {
+        content?: string;
+        lang?: string;
+      };
+
+      if (!data.content) {
+        console.warn(
+          `[SUPADATA] empty content for ${videoId} (lang attempt)`,
+        );
+        continue;
+      }
+
+      const text = data.content.replace(/\s+/g, " ").trim();
+      if (!text) continue;
+
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
+      console.log(
+        `[SUPADATA] OK for ${videoId}: ${wordCount} words (lang: ${data.lang ?? "unknown"})`,
+      );
+      return { text, wordCount };
     }
 
-    const data = (await resp.json()) as {
-      content?: string;
-      lang?: string;
-    };
-
-    if (!data.content) {
-      console.warn(`[YouTube] Supadata returned empty content for ${videoId}`);
-      return null;
-    }
-
-    const text = data.content.replace(/\s+/g, " ").trim();
-    if (!text) return null;
-
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
-    console.log(`[YouTube] Supadata OK for ${videoId}: ${wordCount} words`);
-    return { text, wordCount };
+    console.warn(`[SUPADATA] no transcript found for ${videoId} after all attempts`);
+    return null;
   } catch (error) {
     console.warn(
-      `[YouTube] Supadata error for ${videoId}:`,
+      `[SUPADATA] error for ${videoId}:`,
       error instanceof Error ? error.message : error,
     );
     return null;
