@@ -181,12 +181,13 @@ export async function indexSingleItem(
 
     await db.insert(contentChunks).values(chunksWithEmbeddings);
 
-    // Step 6: Mark as indexed
+    // Step 6: Mark as indexed (clear any previous error)
     await db
       .update(contentText)
       .set({
         indexStatus: "indexed",
         indexedAt: new Date(),
+        indexError: null,
       })
       .where(eq(contentText.id, contentTextRecord.id));
 
