@@ -1,9 +1,12 @@
 /**
- * Pure JS YouTube transcript fetcher
- * Uses YouTube's innertube API with ANDROID client to get caption URLs
- * that work server-side (no yt-dlp needed, works on Vercel)
+ * YouTube transcript fetcher with Supadata fallback.
+ *
+ * Strategy:
+ * 1. Try innertube ANDROID client (free, works locally / some cloud IPs)
+ * 2. If that fails and SUPADATA_API_KEY is set, fall back to Supadata API
  */
 
+import { env } from "~/env";
 import type { YouTubeTranscriptResult } from "./youtube-transcript-ytdlp";
 
 const WATCH_URL = "https://www.youtube.com/watch?v=";
@@ -19,10 +22,28 @@ const USER_AGENT =
   "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
 
 /**
- * Fetch YouTube transcript using innertube API (pure JS, no binary deps).
- * Returns transcript text and word count, or null if unavailable.
+ * Fetch YouTube transcript — tries innertube first, then Supadata fallback.
  */
 export async function fetchYouTubeTranscriptViaNpm(
+  videoId: string,
+): Promise<YouTubeTranscriptResult | null> {
+  // Try innertube first
+  const innertubeResult = await fetchViaInnertube(videoId);
+  if (innertubeResult) return innertubeResult;
+
+  // Fall back to Supadata if configured
+  if (env.SUPADATA_API_KEY) {
+    console.log(`[YouTube] Innertube failed for ${videoId}, trying Supadata`);
+    return fetchViaSupadata(videoId);
+  }
+
+  return null;
+}
+
+/**
+ * Fetch transcript via YouTube innertube ANDROID client.
+ */
+async function fetchViaInnertube(
   videoId: string,
 ): Promise<YouTubeTranscriptResult | null> {
   try {
@@ -80,13 +101,14 @@ export async function fetchYouTubeTranscriptViaNpm(
       console.warn(
         `[YouTube] Player status ${playabilityStatus} for ${videoId}: ${playerData.playabilityStatus?.reason ?? "no reason"}`,
       );
+      return null;
     }
 
     const captionTracks =
       playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (!captionTracks || captionTracks.length === 0) {
       console.warn(`[YouTube] No caption tracks for ${videoId} (playability: ${playabilityStatus ?? "unknown"})`);
-      return null; // No captions available
+      return null;
     }
 
     // Find English track (prefer manual over auto-generated)
@@ -121,7 +143,52 @@ export async function fetchYouTubeTranscriptViaNpm(
     return { text, wordCount };
   } catch (error) {
     console.warn(
-      `[YouTube] Transcript fetch error for ${videoId}:`,
+      `[YouTube] Innertube error for ${videoId}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Fetch transcript via Supadata API (reliable from cloud environments).
+ * See: https://docs.supadata.ai/get-transcript
+ */
+async function fetchViaSupadata(
+  videoId: string,
+): Promise<YouTubeTranscriptResult | null> {
+  try {
+    const url = `https://api.supadata.ai/v1/transcript?url=https://www.youtube.com/watch?v=${videoId}&lang=en&text=true`;
+    const resp = await fetch(url, {
+      headers: {
+        "x-api-key": env.SUPADATA_API_KEY!,
+      },
+    });
+
+    if (!resp.ok) {
+      console.warn(`[YouTube] Supadata returned ${resp.status} for ${videoId}`);
+      return null;
+    }
+
+    const data = (await resp.json()) as {
+      content?: string;
+      lang?: string;
+    };
+
+    if (!data.content) {
+      console.warn(`[YouTube] Supadata returned empty content for ${videoId}`);
+      return null;
+    }
+
+    const text = data.content.replace(/\s+/g, " ").trim();
+    if (!text) return null;
+
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    console.log(`[YouTube] Supadata OK for ${videoId}: ${wordCount} words`);
+    return { text, wordCount };
+  } catch (error) {
+    console.warn(
+      `[YouTube] Supadata error for ${videoId}:`,
       error instanceof Error ? error.message : error,
     );
     return null;

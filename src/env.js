@@ -36,6 +36,8 @@ export const env = createEnv({
     // YouTube API
     YOUTUBE_API_KEY: z.string().optional(),
     YOUTUBE_CHANNEL_ID: z.string().optional(),
+    // Supadata API (YouTube transcript fallback for cloud environments)
+    SUPADATA_API_KEY: z.string().optional(),
   },
 
   /**
@@ -73,6 +75,7 @@ export const env = createEnv({
     API_IMPORT_CHUNK_DELAY_MS: process.env.API_IMPORT_CHUNK_DELAY_MS,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     YOUTUBE_CHANNEL_ID: process.env.YOUTUBE_CHANNEL_ID,
+    SUPADATA_API_KEY: process.env.SUPADATA_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
