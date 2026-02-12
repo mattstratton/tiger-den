@@ -37,7 +37,7 @@ export async function fetchYouTubeTranscriptViaNpm(
 
     const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
     if (!apiKeyMatch?.[1]) {
-      console.warn(`[YouTube] Could not extract innertube API key for ${videoId}`);
+      console.warn(`[YouTube] Could not extract innertube API key for ${videoId} (page status: ${pageResp.status}, html length: ${html.length})`);
       return null;
     }
     const apiKey = apiKeyMatch[1];
@@ -63,6 +63,7 @@ export async function fetchYouTubeTranscriptViaNpm(
     }
 
     const playerData = (await playerResp.json()) as {
+      playabilityStatus?: { status?: string; reason?: string };
       captions?: {
         playerCaptionsTracklistRenderer?: {
           captionTracks?: Array<{
@@ -74,9 +75,17 @@ export async function fetchYouTubeTranscriptViaNpm(
       };
     };
 
+    const playabilityStatus = playerData.playabilityStatus?.status;
+    if (playabilityStatus && playabilityStatus !== "OK") {
+      console.warn(
+        `[YouTube] Player status ${playabilityStatus} for ${videoId}: ${playerData.playabilityStatus?.reason ?? "no reason"}`,
+      );
+    }
+
     const captionTracks =
       playerData.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (!captionTracks || captionTracks.length === 0) {
+      console.warn(`[YouTube] No caption tracks for ${videoId} (playability: ${playabilityStatus ?? "unknown"})`);
       return null; // No captions available
     }
 
