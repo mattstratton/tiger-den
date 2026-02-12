@@ -164,65 +164,56 @@ async function fetchViaSupadata(
     const youtubeUrl = encodeURIComponent(
       `https://www.youtube.com/watch?v=${videoId}`,
     );
-    // Try English first, fall back to any language
-    const attempts = [
-      `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&lang=en&text=true`,
-      `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&text=true`,
-    ];
+    const url = `https://api.supadata.ai/v1/transcript?url=${youtubeUrl}&text=true`;
+    console.log(`[SUPADATA] request: ${url}`);
 
-    for (const url of attempts) {
-      console.log(`[SUPADATA] request: ${url}`);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25_000);
-      let resp: Response;
-      try {
-        resp = await fetch(url, {
-          headers: {
-            "x-api-key": env.SUPADATA_API_KEY!,
-          },
-          signal: controller.signal,
-        });
-      } catch (fetchErr) {
-        clearTimeout(timeout);
-        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-          console.warn(`[SUPADATA] timeout (25s) for ${videoId}`);
-          continue;
-        }
-        throw fetchErr;
-      }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        headers: {
+          "x-api-key": env.SUPADATA_API_KEY!,
+        },
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
       clearTimeout(timeout);
-
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => "");
-        console.warn(
-          `[SUPADATA] returned ${resp.status} for ${videoId}: ${body}`,
-        );
-        continue;
+      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+        console.warn(`[SUPADATA] timeout (30s) for ${videoId}`);
+        return null;
       }
+      throw fetchErr;
+    }
+    clearTimeout(timeout);
 
-      const data = (await resp.json()) as {
-        content?: string;
-        lang?: string;
-      };
-
-      if (!data.content) {
-        console.warn(
-          `[SUPADATA] empty content for ${videoId} (lang attempt)`,
-        );
-        continue;
-      }
-
-      const text = data.content.replace(/\s+/g, " ").trim();
-      if (!text) continue;
-
-      const wordCount = text.split(/\s+/).filter(Boolean).length;
-      console.log(
-        `[SUPADATA] OK for ${videoId}: ${wordCount} words (lang: ${data.lang ?? "unknown"})`,
-      );
-      return { text, wordCount };
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      console.warn(`[SUPADATA] returned ${resp.status} for ${videoId}: ${body}`);
+      return null;
     }
 
-    console.warn(`[SUPADATA] no transcript found for ${videoId} after all attempts`);
+    const data = (await resp.json()) as {
+      content?: string;
+      lang?: string;
+    };
+
+    if (!data.content) {
+      console.warn(`[SUPADATA] empty content for ${videoId}`);
+      return null;
+    }
+
+    const text = data.content.replace(/\s+/g, " ").trim();
+    if (!text) {
+      console.warn(`[SUPADATA] blank transcript for ${videoId}`);
+      return null;
+    }
+
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    console.log(
+      `[SUPADATA] OK for ${videoId}: ${wordCount} words (lang: ${data.lang ?? "unknown"})`,
+    );
+    return { text, wordCount };
     return null;
   } catch (error) {
     console.warn(
