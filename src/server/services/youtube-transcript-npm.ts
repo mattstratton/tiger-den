@@ -172,11 +172,25 @@ async function fetchViaSupadata(
 
     for (const url of attempts) {
       console.log(`[SUPADATA] request: ${url}`);
-      const resp = await fetch(url, {
-        headers: {
-          "x-api-key": env.SUPADATA_API_KEY!,
-        },
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25_000);
+      let resp: Response;
+      try {
+        resp = await fetch(url, {
+          headers: {
+            "x-api-key": env.SUPADATA_API_KEY!,
+          },
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+          console.warn(`[SUPADATA] timeout (25s) for ${videoId}`);
+          continue;
+        }
+        throw fetchErr;
+      }
+      clearTimeout(timeout);
 
       if (!resp.ok) {
         const body = await resp.text().catch(() => "");

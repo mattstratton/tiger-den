@@ -34,4 +34,7 @@ const handler = (req: NextRequest) =>
         : undefined,
   });
 
+// Allow longer execution for indexing operations (Supadata transcript fetch, embeddings)
+export const maxDuration = 60;
+
 export { handler as GET, handler as POST };
