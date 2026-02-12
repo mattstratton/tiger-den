@@ -241,6 +241,10 @@ title,url,content_type,publish_date,description,author,target_audience,tags,camp
 - `third_party`
 - `other`
 
+## Claude Prompt configuration
+
+To change the prompt used in the "copy prompt for LinkedIn articles" (note, it's not called that), modify `src/lib/linkedin-prompt-template.ts` and redeploy the app.
+
 ## Deployment
 
 ### Vercel (Recommended)

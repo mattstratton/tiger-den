@@ -1,4 +1,5 @@
 import { apiImportRouter } from "~/server/api/routers/api-import";
+import { voiceProfilesRouter } from "~/server/api/routers/voice-profiles";
 import { campaignsRouter } from "~/server/api/routers/campaigns";
 import { contentRouter } from "~/server/api/routers/content";
 import { contentTypesRouter } from "~/server/api/routers/contentTypes";
@@ -24,6 +25,7 @@ if (process.env.NODE_ENV !== "test") {
 export const appRouter = createTRPCRouter({
   post: postRouter,
   content: contentRouter,
+  voiceProfiles: voiceProfilesRouter,
   campaigns: campaignsRouter,
   csv: csvRouter,
   queue: queueRouter,

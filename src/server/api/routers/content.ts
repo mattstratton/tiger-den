@@ -348,6 +348,24 @@ export const contentRouter = createTRPCRouter({
       return indexStatus ?? null;
     }),
 
+  getContentText: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const textRecord = await ctx.db.query.contentText.findFirst({
+        where: eq(contentText.contentItemId, input.id),
+        columns: {
+          plainText: true,
+          indexStatus: true,
+        },
+      });
+
+      if (!textRecord || textRecord.indexStatus !== "indexed") {
+        return null;
+      }
+
+      return { plainText: textRecord.plainText };
+    }),
+
   hybridSearch: protectedProcedure
     .input(
       z.object({

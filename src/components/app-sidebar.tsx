@@ -6,6 +6,8 @@ import {
   FolderKanban,
   Home,
   ListChecks,
+  Mic,
+  Repeat,
   Tags,
   Users,
 } from "lucide-react";
@@ -30,6 +32,8 @@ const mainNav = [
   { title: "Dashboard", href: "/", icon: Home },
   { title: "Content", href: "/content", icon: FileText },
   { title: "Campaigns", href: "/campaigns", icon: FolderKanban },
+  { title: "Voice Profiles", href: "/voice-profiles", icon: Mic },
+  { title: "LinkedIn Converter", href: "/linkedin-converter", icon: Repeat },
 ] as const;
 
 const adminNav = [

@@ -404,6 +404,62 @@ export const contentCampaignsRelations = relations(
   }),
 );
 
+// Voice profiles for content conversion (writing style matching)
+export const voiceProfiles = tigerDenSchema.table(
+  "voice_profiles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull().unique(), // slug-style lookup key (e.g., "matty", "sarah")
+    displayName: text("display_name").notNull(),
+    title: text("title"),
+    company: text("company").default("Tiger Data"),
+    linkedinUrl: text("linkedin_url"),
+    topics: text("topics").array(),
+    voiceNotes: text("voice_notes").notNull(), // free-form writing style description
+    antiPatterns: text("anti_patterns").array(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    nameIdx: index("voice_profiles_name_idx").on(table.name),
+  }),
+);
+
+// Writing samples for voice profile matching
+export const writingSamples = tigerDenSchema.table(
+  "writing_samples",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    voiceProfileId: uuid("voice_profile_id")
+      .notNull()
+      .references(() => voiceProfiles.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    content: text("content").notNull(),
+    sourceType: text("source_type"), // linkedin_post, blog_excerpt, conference_talk, slack_message, other
+    sourceUrl: text("source_url"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    voiceProfileIdIdx: index("writing_samples_voice_profile_id_idx").on(
+      table.voiceProfileId,
+    ),
+  }),
+);
+
+export const voiceProfilesRelations = relations(voiceProfiles, ({ many }) => ({
+  writingSamples: many(writingSamples),
+}));
+
+export const writingSamplesRelations = relations(writingSamples, ({ one }) => ({
+  voiceProfile: one(voiceProfiles, {
+    fields: [writingSamples.voiceProfileId],
+    references: [voiceProfiles.id],
+  }),
+}));
+
 export const contentTextRelations = relations(contentText, ({ one, many }) => ({
   contentItem: one(contentItems, {
     fields: [contentText.contentItemId],

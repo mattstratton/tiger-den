@@ -71,7 +71,13 @@ export default async function ContentDetailPage(props: PageProps) {
             </a>
           </Button>
         </div>
-        <ContentDetailActions contentId={content.id} title={content.title} />
+        <ContentDetailActions
+          contentId={content.id}
+          currentUrl={content.currentUrl}
+          description={content.description}
+          tags={content.tags}
+          title={content.title}
+        />
       </div>
 
       <Separator />

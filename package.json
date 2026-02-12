@@ -42,6 +42,7 @@
     "next-auth": "^5.0.0-beta.30",
     "openai": "^6.17.0",
     "papaparse": "^5.5.3",
+    "pdfjs-dist": "^5.4.624",
     "pg-boss": "^10.4.2",
     "pgvector": "^0.2.1",
     "postgres": "^3.4.8",
