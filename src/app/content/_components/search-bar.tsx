@@ -67,7 +67,7 @@ export function SearchBar({
           Titles/Metadata
         </ToggleGroupItem>
         <ToggleGroupItem className="text-xs" disabled={!search} value="keyword">
-          Keywords (Free)
+          Keyword
         </ToggleGroupItem>
         <ToggleGroupItem
           className={cn(
@@ -80,7 +80,7 @@ export function SearchBar({
           value="fullContent"
         >
           <Sparkles className="mr-1 h-3 w-3" />
-          Full Content (AI)
+          Content Search
         </ToggleGroupItem>
       </ToggleGroup>
     </div>
