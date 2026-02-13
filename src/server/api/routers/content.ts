@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import {
+  adminProcedure,
   contributorProcedure,
   createTRPCRouter,
   protectedProcedure,
@@ -22,6 +23,7 @@ import {
   contentCampaigns,
   contentItems,
   contentText,
+  contentTypes,
 } from "~/server/db/schema";
 import { countTokens } from "~/server/services/content-fetcher";
 import { generateEmbedding } from "~/server/services/embeddings";
@@ -588,6 +590,32 @@ export const contentRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  youtubeNeedingTranscripts: adminProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db
+      .select({
+        id: contentItems.id,
+        title: contentItems.title,
+        currentUrl: contentItems.currentUrl,
+        indexStatus: contentText.indexStatus,
+        indexError: contentText.indexError,
+      })
+      .from(contentItems)
+      .innerJoin(contentTypes, eq(contentItems.contentTypeId, contentTypes.id))
+      .leftJoin(contentText, eq(contentItems.id, contentText.contentItemId))
+      .where(
+        and(
+          eq(contentTypes.slug, "youtube_video"),
+          or(
+            sql`${contentText.id} IS NULL`,
+            eq(contentText.indexStatus, "failed"),
+          ),
+        ),
+      )
+      .orderBy(asc(contentItems.title));
+
+    return rows;
+  }),
 
   deleteAll: contributorProcedure.mutation(async ({ ctx }) => {
     // Delete all content items (for testing purposes)

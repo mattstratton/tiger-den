@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Captions,
   Download,
   FileText,
   FolderKanban,
@@ -38,6 +39,7 @@ const mainNav = [
 
 const adminNav = [
   { title: "Queue", href: "/admin/queue", icon: ListChecks },
+  { title: "Transcripts", href: "/admin/transcripts", icon: Captions },
   { title: "API Import", href: "/admin/api-import", icon: Download },
   { title: "Content Types", href: "/admin/content-types", icon: Tags },
   { title: "Users", href: "/admin/users", icon: Users },

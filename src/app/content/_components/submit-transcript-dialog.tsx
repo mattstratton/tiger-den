@@ -74,7 +74,10 @@ export function SubmitTranscriptDialog({
 
   const submitMutation = api.content.submitTranscript.useMutation({
     onSuccess: async () => {
-      await utils.content.getIndexStatus.invalidate({ id: contentId });
+      await Promise.all([
+        utils.content.getIndexStatus.invalidate({ id: contentId }),
+        utils.content.youtubeNeedingTranscripts.invalidate(),
+      ]);
       toast.success("Transcript indexed successfully");
       setTranscript("");
       setFileName(null);
