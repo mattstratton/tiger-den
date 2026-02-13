@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
   and,
@@ -22,8 +23,12 @@ import {
   contentItems,
   contentText,
 } from "~/server/db/schema";
+import { countTokens } from "~/server/services/content-fetcher";
 import { generateEmbedding } from "~/server/services/embeddings";
-import { indexContent } from "~/server/services/indexing-orchestrator";
+import {
+  indexContent,
+  indexFromExistingContent,
+} from "~/server/services/indexing-orchestrator";
 import { keywordSearch } from "~/server/services/keyword-search";
 import { fetchUrlMetadata } from "~/server/services/publish-date-fetcher";
 import { hybridSearch } from "~/server/services/search-service";
@@ -506,6 +511,82 @@ export const contentRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const metadata = await fetchUrlMetadata(input.url);
       return metadata;
+    }),
+
+  submitTranscript: contributorProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        transcript: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify content item exists
+      const item = await ctx.db.query.contentItems.findFirst({
+        where: eq(contentItems.id, input.id),
+      });
+
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Content item not found",
+        });
+      }
+
+      const plainText = input.transcript.trim();
+      const wordCount = plainText.split(/\s+/).filter(Boolean).length;
+      const tokenCount = await countTokens(plainText);
+      const contentHash = crypto
+        .createHash("sha256")
+        .update(plainText)
+        .digest("hex");
+
+      // Upsert content_text row
+      const [contentTextRecord] = await ctx.db
+        .insert(contentText)
+        .values({
+          contentItemId: input.id,
+          fullText: plainText,
+          plainText,
+          wordCount,
+          tokenCount,
+          contentHash,
+          crawlDurationMs: 0,
+          indexStatus: "pending",
+        })
+        .onConflictDoUpdate({
+          target: contentText.contentItemId,
+          set: {
+            fullText: plainText,
+            plainText,
+            wordCount,
+            tokenCount,
+            contentHash,
+            crawlDurationMs: 0,
+            indexStatus: "pending",
+            indexError: null,
+          },
+        })
+        .returning();
+
+      if (!contentTextRecord) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to save transcript",
+        });
+      }
+
+      // Chunk + embed using existing indexing pipeline
+      const result = await indexFromExistingContent(contentTextRecord.id);
+
+      if (!result.success) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: result.error ?? "Indexing failed",
+        });
+      }
+
+      return { success: true };
     }),
 
   deleteAll: contributorProcedure.mutation(async ({ ctx }) => {

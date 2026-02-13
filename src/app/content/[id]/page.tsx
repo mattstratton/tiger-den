@@ -19,6 +19,7 @@ import { api } from "~/trpc/server";
 import { ContentTypeBadge } from "../_components/content-badge";
 import { ContentIndexStatus } from "../_components/content-index-status";
 import { ReindexButton } from "../_components/reindex-button";
+import { SubmitTranscriptDialog } from "../_components/submit-transcript-dialog";
 import { ContentDetailActions } from "./_components/content-detail-actions";
 
 interface PageProps {
@@ -245,9 +246,15 @@ export default async function ContentDetailPage(props: PageProps) {
               <CardTitle>Search Index</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <ContentIndexStatus contentId={content.id} />
                 <ReindexButton contentId={content.id} indexStatus={null} />
+                {content.contentTypeRel?.slug === "youtube_video" && (
+                  <SubmitTranscriptDialog
+                    contentId={content.id}
+                    contentUrl={content.currentUrl}
+                  />
+                )}
               </div>
               <p className="mt-3 text-muted-foreground text-xs leading-relaxed">
                 Index status affects full-content search. Use Refresh index when
